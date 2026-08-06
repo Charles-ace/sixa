@@ -1,0 +1,41 @@
+{
+  "name": "Sixa — AI Yield Optimization Agent",
+  "short_name": "Sixa",
+  "description": "Autonomous AI agent that maximizes returns on your crypto assets using natural language.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#070707",
+  "theme_color": "#070707",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon-16x16.svg",
+      "sizes": "16x16",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon-32x32.svg",
+      "sizes": "32x32",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.svg",
+      "sizes": "180x180",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["finance", "productivity", "utilities"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Try Demo",
+      "short_name": "Demo",
+      "description": "Try Sixa AI chat demo",
+      "url": "/#demo",
+      "icons": [{ "src": "/favicon-32x32.svg", "sizes": "32x32" }]
+    }
+  ]
+}
