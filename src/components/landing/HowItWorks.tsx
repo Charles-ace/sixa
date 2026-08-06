@@ -15,15 +15,13 @@ export function HowItWorks() {
   return (
     <section id="how-it-works" className="relative py-20 md:py-28 border-t border-black/10">
       <div className="mx-auto max-w-6xl px-6">
-        <p className="text-xs font-mono uppercase tracking-wider text-secondary mb-3">
-          sixa · pipeline
-        </p>
+        <p className="section-label">sixa · pipeline</p>
         <motion.h2
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-80px' }}
           transition={{ duration: 0.5 }}
-          className="text-4xl md:text-6xl font-bold tracking-tight mb-5"
+          className="text-4xl md:text-6xl font-bold tracking-tight text-balance mb-5"
         >
           One pipeline. Five stages.
         </motion.h2>
@@ -50,18 +48,20 @@ export function HowItWorks() {
             >
               {index < pipeline.length - 1 && (
                 <div
-                  className="hidden lg:block absolute top-1/2 right-[-14px] w-7 h-px bg-black/20 z-10"
+                  className="hidden lg:block absolute top-10 right-[-14px] w-7 h-px bg-black/20 z-10"
                   aria-hidden="true"
                 />
               )}
-              <div className="h-full rounded-2xl border border-black/10 bg-white px-6 py-6 hover:border-black/30 transition-colors">
-                <p className="font-mono text-[11px] uppercase tracking-wider text-secondary mb-4">
-                  {String(index + 1).padStart(2, '0')} · {stage.label}
-                </p>
-                <div className="flex items-center gap-2.5 mb-2.5">
-                  <stage.icon className="w-4 h-4" />
-                  <span className="text-sm font-medium">{stage.label}</span>
+              <div className="h-full rounded-2xl border border-black/10 bg-white px-6 py-6 card-hover">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-2xl font-mono font-bold text-black/15">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                  <stage.icon className="w-4 h-4 text-secondary" />
                 </div>
+                <p className="text-[11px] font-mono uppercase tracking-wider text-secondary mb-2">
+                  {stage.label}
+                </p>
                 <p className="text-sm text-secondary font-mono">{stage.detail}</p>
               </div>
             </motion.div>

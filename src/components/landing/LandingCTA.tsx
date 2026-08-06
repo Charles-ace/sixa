@@ -8,12 +8,24 @@ export function LandingCTA() {
   return (
     <section id="available" className="relative py-24 md:py-36 border-t border-black/10">
       <div className="mx-auto max-w-4xl px-6 text-center">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.4 }}
+          className="mb-7 flex justify-center"
+        >
+          <span className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-3.5 py-1.5 text-xs font-mono text-secondary">
+            <span className="w-1.5 h-1.5 rounded-full bg-success" />
+            live today · free to try
+          </span>
+        </motion.div>
         <motion.h2
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-80px' }}
           transition={{ duration: 0.5 }}
-          className="text-5xl md:text-7xl font-bold tracking-tight leading-[1.02] mb-6"
+          className="text-5xl md:text-7xl font-bold tracking-tight leading-[1.02] text-balance mb-6"
         >
           Ask anything.
           <br />

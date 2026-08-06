@@ -25,15 +25,13 @@ export function ExecutionShowcase() {
   return (
     <section id="execution" className="relative py-20 md:py-28 border-t border-black/10">
       <div className="mx-auto max-w-6xl px-6">
-        <p className="text-xs font-mono uppercase tracking-wider text-secondary mb-3">
-          sixa · execution
-        </p>
+        <p className="section-label">sixa · execution</p>
         <motion.h2
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-80px' }}
           transition={{ duration: 0.5 }}
-          className="text-4xl md:text-6xl font-bold tracking-tight max-w-3xl mb-5"
+          className="text-4xl md:text-6xl font-bold tracking-tight text-balance max-w-3xl mb-5"
         >
           Execution you can watch, trust, and verify.
         </motion.h2>

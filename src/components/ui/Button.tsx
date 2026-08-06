@@ -4,16 +4,16 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-from/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-from/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]',
   {
     variants: {
       variant: {
-        default: 'bg-gradient-to-r from-accent-from to-accent-via text-white hover:shadow-lg hover:shadow-accent-from/20',
-        secondary: 'bg-white/5 border border-border hover:bg-white/10 hover:border-border text-foreground',
-        outline: 'border border-border bg-transparent hover:bg-white/5 text-foreground',
-        ghost: 'bg-transparent hover:bg-white/5 text-foreground',
-        destructive: 'bg-gradient-to-r from-red-500 to-red-600 text-white hover:shadow-lg hover:shadow-red-500/20',
-        success: 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:shadow-lg hover:shadow-emerald-500/20',
+        default: 'bg-foreground text-background hover:bg-foreground/90 hover:shadow-lg hover:shadow-accent-from/15',
+        secondary: 'border border-border bg-surface text-foreground hover:border-black/30 hover:bg-black/[0.03]',
+        outline: 'border border-border bg-transparent hover:border-black/40 text-foreground',
+        ghost: 'bg-transparent hover:bg-black/5 text-foreground',
+        destructive: 'bg-error text-white hover:bg-error/90 hover:shadow-lg hover:shadow-error/20',
+        success: 'bg-success text-white hover:bg-success/90 hover:shadow-lg hover:shadow-success/20',
       },
       size: {
         default: 'h-11 px-5 py-2',

@@ -43,15 +43,13 @@ export function DeployStatus() {
   return (
     <section id="status" className="relative py-20 md:py-28 border-t border-black/10">
       <div className="mx-auto max-w-6xl px-6">
-        <p className="text-xs font-mono uppercase tracking-wider text-secondary mb-3">
-          sixa · status
-        </p>
+        <p className="section-label">sixa · status</p>
         <motion.h2
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-80px' }}
           transition={{ duration: 0.5 }}
-          className="text-4xl md:text-6xl font-bold tracking-tight mb-5"
+          className="text-4xl md:text-6xl font-bold tracking-tight text-balance mb-5"
         >
           What is live.
         </motion.h2>

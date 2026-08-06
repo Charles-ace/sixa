@@ -38,24 +38,24 @@ export function Navbar() {
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
         className={cn(
-          'fixed top-0 left-0 right-0 z-50 transition-all duration-300 border-b',
+          'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
           isScrolled
-            ? 'bg-background/85 backdrop-blur-xl border-black/10'
-            : 'bg-background border-transparent'
+            ? 'border-b border-black/10 bg-background/85 backdrop-blur-xl'
+            : 'border-b border-transparent bg-background'
         )}
         style={{ willChange: 'transform, background-color' }}
       >
-        <nav className="mx-auto max-w-6xl px-6 py-3.5" aria-label="Main navigation">
+        <nav className="mx-auto max-w-6xl px-6 py-3" aria-label="Main navigation">
           <div className="flex items-center justify-between gap-4">
             <Link
               href="/"
               className="flex items-center gap-2.5 text-foreground hover:opacity-70 transition-opacity"
               aria-label="Sixa Home"
             >
-              <div className="w-7 h-7 rounded-md bg-foreground text-background flex items-center justify-center">
-                <span className="text-[13px] font-bold leading-none">S</span>
+              <div className="w-8 h-8 rounded-full bg-foreground text-background flex items-center justify-center">
+                <span className="text-sm font-bold leading-none">S</span>
               </div>
-              <span className="font-semibold text-[15px] tracking-tight">Sixa</span>
+              <span className="font-semibold text-[15px] tracking-tight">sixa</span>
             </Link>
 
             <div className="hidden md:flex items-center gap-8">
@@ -80,7 +80,7 @@ export function Navbar() {
                   <Button variant="ghost" size="sm" onClick={() => document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' })}>
                     Watch it work
                   </Button>
-                  <Button size="sm" className="gap-1.5 rounded-full" onClick={() => router.push('/app')}>
+                  <Button size="sm" className="gap-1.5" onClick={() => router.push('/app')}>
                     Launch app
                     <ArrowUpRight className="w-3.5 h-3.5" />
                   </Button>
@@ -124,10 +124,10 @@ export function Navbar() {
                       </Button>
                     ) : (
                       <>
-                        <Button className="w-full justify-center gap-1.5 rounded-full" onClick={() => { router.push('/app'); setIsMobileMenuOpen(false); }}>
+                        <Button className="w-full justify-center gap-1.5" onClick={() => { router.push('/app'); setIsMobileMenuOpen(false); }}>
                           Launch app <ArrowUpRight className="w-3.5 h-3.5" />
                         </Button>
-                        <Button variant="secondary" className="w-full justify-center rounded-full" onClick={() => { document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' }); setIsMobileMenuOpen(false); }}>
+                        <Button variant="secondary" className="w-full justify-center" onClick={() => { document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' }); setIsMobileMenuOpen(false); }}>
                           Watch it work
                         </Button>
                       </>

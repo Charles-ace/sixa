@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { ArrowUpRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const commands = [
@@ -16,15 +17,13 @@ export function CommandsShowcase() {
   return (
     <section id="commands" className="relative py-20 md:py-28 border-t border-black/10">
       <div className="mx-auto max-w-6xl px-6">
-        <p className="text-xs font-mono uppercase tracking-wider text-secondary mb-3">
-          sixa · commands
-        </p>
+        <p className="section-label">sixa · commands</p>
         <motion.h2
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-80px' }}
           transition={{ duration: 0.5 }}
-          className="text-4xl md:text-6xl font-bold tracking-tight mb-5"
+          className="text-4xl md:text-6xl font-bold tracking-tight text-balance mb-5"
         >
           How you use Sixa.
         </motion.h2>
@@ -40,26 +39,30 @@ export function CommandsShowcase() {
           before anything moves.
         </motion.p>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-px bg-black/10 border border-black/10 rounded-2xl overflow-hidden">
+        <div className="rounded-2xl border border-black/10 bg-white divide-y divide-black/[0.06] overflow-hidden">
           {commands.map((cmd, index) => (
             <motion.div
               key={cmd.text}
-              initial={{ opacity: 0, y: 16 }}
+              initial={{ opacity: 0, y: 12 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-50px' }}
-              transition={{ duration: 0.4, delay: index * 0.05 }}
-              className="bg-background p-6 hover:bg-white transition-colors group cursor-default"
+              viewport={{ once: true, margin: '-40px' }}
+              transition={{ duration: 0.35, delay: index * 0.05 }}
+              className="group flex items-center gap-4 px-6 py-4.5 hover:bg-background transition-colors cursor-default"
             >
-              <div className="flex items-start justify-between gap-3 mb-2.5">
-                <code className="text-sm font-mono">{cmd.text}</code>
-                <span className={cn(
-                  'text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full border flex-shrink-0',
-                  'text-success border-success/30 bg-success/5 group-hover:bg-success/10'
-                )}>
-                  supported
-                </span>
+              <div className="flex-shrink-0 w-9 h-9 rounded-full border border-black/10 bg-background/60 flex items-center justify-center">
+                <span className="text-xs font-mono text-secondary">{index + 1}</span>
               </div>
-              <p className="text-sm text-secondary">{cmd.desc}</p>
+              <div className="flex-1 min-w-0">
+                <code className="block text-sm font-mono mb-0.5">{cmd.text}</code>
+                <p className="text-sm text-secondary truncate">{cmd.desc}</p>
+              </div>
+              <span className={cn(
+                'text-[10px] font-mono uppercase tracking-wider px-2.5 py-1 rounded-full border flex-shrink-0',
+                'text-success border-success/30 bg-success/5'
+              )}>
+                supported
+              </span>
+              <ArrowUpRight className="w-4 h-4 text-secondary opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
             </motion.div>
           ))}
         </div>

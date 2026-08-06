@@ -27,26 +27,26 @@ const footerLinks: Record<string, { label: string; href: string; external?: bool
 export function Footer() {
   return (
     <footer className="border-t border-black/10 bg-background" aria-labelledby="footer-title">
-      <div className="mx-auto max-w-6xl px-6 py-14">
-        <div className="grid lg:grid-cols-6 gap-10 mb-12">
+      <div className="mx-auto max-w-6xl px-6 py-16">
+        <div className="grid lg:grid-cols-6 gap-10 mb-14">
           <div className="lg:col-span-2 space-y-4">
             <Link href="/" className="flex items-center gap-2.5" aria-label="Sixa Home">
-              <div className="w-7 h-7 rounded-md bg-foreground text-background flex items-center justify-center">
-                <span className="text-[13px] font-bold leading-none">S</span>
+              <div className="w-8 h-8 rounded-full bg-foreground text-background flex items-center justify-center">
+                <span className="text-sm font-bold leading-none">S</span>
               </div>
-              <span className="font-semibold text-[15px] tracking-tight">Sixa</span>
+              <span className="font-semibold text-[15px] tracking-tight">sixa</span>
             </Link>
             <p className="text-sm text-secondary leading-relaxed max-w-xs">
               AI on-chain execution assistant. Non-custodial by design —
               intent, simulation, KeeperHub relay, audit.
             </p>
-            <div className="flex items-center gap-3 pt-1">
+            <div className="flex items-center gap-2.5 pt-1">
               <a
                 href="https://github.com/Charles-ace/sixa"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="GitHub"
-                className="w-8 h-8 rounded-md border border-black/10 flex items-center justify-center text-secondary hover:text-foreground hover:border-black/30 transition-all"
+                className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center text-secondary hover:text-foreground hover:border-black/30 transition-all"
               >
                 <Github className="w-4 h-4" />
               </a>
@@ -55,14 +55,14 @@ export function Footer() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Discord"
-                className="w-8 h-8 rounded-md border border-black/10 flex items-center justify-center text-secondary hover:text-foreground hover:border-black/30 transition-all"
+                className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center text-secondary hover:text-foreground hover:border-black/30 transition-all"
               >
                 <MessageSquare className="w-4 h-4" />
               </a>
               <a
                 href="mailto:hello@sixa.xyz"
                 aria-label="Email"
-                className="w-8 h-8 rounded-md border border-black/10 flex items-center justify-center text-secondary hover:text-foreground hover:border-black/30 transition-all"
+                className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center text-secondary hover:text-foreground hover:border-black/30 transition-all"
               >
                 <Mail className="w-4 h-4" />
               </a>
@@ -74,7 +74,7 @@ export function Footer() {
               key={category}
               aria-label={category.charAt(0).toUpperCase() + category.slice(1)}
             >
-              <h3 className="text-[11px] font-mono uppercase tracking-wider text-secondary mb-4">
+              <h3 className="text-[11px] font-mono uppercase tracking-[0.18em] text-secondary mb-4">
                 {category}
               </h3>
               <ul className="space-y-2.5" role="list">
@@ -97,14 +97,14 @@ export function Footer() {
         <div className="pt-8 border-t border-black/10">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <p className="text-sm text-secondary">
-              © {new Date().getFullYear()} Sixa. All rights reserved.
+              © {new Date().getFullYear()} Sixa. AI on-chain execution. Settled on-chain, audited always.
             </p>
             <div className="flex items-center gap-5 text-xs font-mono text-secondary">
               <span className="flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-success" />
                 keeperhub · live
               </span>
-              <span>non-custodial · simulated first · audit trail</span>
+              <span className="hidden sm:inline">non-custodial · simulated first · audit trail</span>
             </div>
           </div>
         </div>
