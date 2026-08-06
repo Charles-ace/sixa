@@ -15,6 +15,7 @@ const footerLinks: Record<string, { label: string; href: string; external?: bool
     { label: 'Security', href: '/#mechanism' },
     { label: 'Status', href: '/#status' },
     { label: 'Stack', href: '/#stack' },
+    { label: 'KeeperHub Docs', href: 'https://docs.keeperhub.com', external: true },
     { label: 'FAQ', href: '/#faq' },
   ],
   connect: [

@@ -41,14 +41,21 @@ function TypeText({
   showCaret?: boolean;
   ariaLabel?: string;
 }) {
+  const visible = text.slice(0, visibleCount);
+  const hidden = text.slice(visibleCount);
   return (
     <span aria-label={ariaLabel}>
-      {text.split('').map((ch, i) => (
-        <span key={i} className={cn('whitespace-pre', i >= visibleCount && 'opacity-0')}>
+      {visible.split('').map((ch, i) => (
+        <span key={i} className="whitespace-pre">
           {ch === ' ' ? '\u00A0' : ch}
         </span>
       ))}
       {showCaret && <Caret />}
+      {hidden.split('').map((ch, i) => (
+        <span key={i} className="whitespace-pre opacity-0">
+          {ch === ' ' ? '\u00A0' : ch}
+        </span>
+      ))}
     </span>
   );
 }

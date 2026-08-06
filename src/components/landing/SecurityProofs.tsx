@@ -76,6 +76,18 @@ export function SecurityProofs() {
         >
           Read the source on GitHub <ArrowUpRight className="w-4 h-4" />
         </motion.a>
+        <motion.a
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.45 }}
+          href="https://docs.keeperhub.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-8 ml-6 inline-flex items-center gap-1.5 text-sm text-secondary hover:text-foreground transition-colors font-mono"
+        >
+          KeeperHub documentation <ArrowUpRight className="w-4 h-4" />
+        </motion.a>
       </div>
     </section>
   );
