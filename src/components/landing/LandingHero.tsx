@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef } from 'react';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { motion, useScroll, useTransform, useMotionValue, useSpring } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { ArrowUpRight, ShieldCheck, PlayCircle, ScrollText, Zap, Sparkles } from 'lucide-react';
@@ -18,6 +18,7 @@ const TRUST_ROW = [
 export function LandingHero() {
   const router = useRouter();
   const sectionRef = useRef<HTMLElement>(null);
+  const tiltRef = useRef<HTMLDivElement>(null);
 
   const { scrollYProgress } = useScroll({
     target: sectionRef,
@@ -27,6 +28,23 @@ export function LandingHero() {
   const mockupY = useTransform(scrollYProgress, [0, 1], [0, 80]);
   const mockupOpacity = useTransform(scrollYProgress, [0, 0.75], [1, 0]);
   const textY = useTransform(scrollYProgress, [0, 1], [0, 40]);
+
+  const tiltX = useSpring(useMotionValue(0), { stiffness: 200, damping: 20 });
+  const tiltY = useSpring(useMotionValue(0), { stiffness: 200, damping: 20 });
+
+  const handleTiltMove = (e: React.MouseEvent) => {
+    const rect = tiltRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const px = (e.clientX - rect.left) / rect.width - 0.5;
+    const py = (e.clientY - rect.top) / rect.height - 0.5;
+    tiltX.set(px * 12);
+    tiltY.set(py * 12);
+  };
+
+  const handleTiltLeave = () => {
+    tiltX.set(0);
+    tiltY.set(0);
+  };
 
   return (
     <section ref={sectionRef} className="relative overflow-hidden pt-16 pb-20 md:pt-24 md:pb-32">
@@ -104,7 +122,15 @@ export function LandingHero() {
             className="w-full lg:w-[420px] flex-shrink-0"
           >
             <motion.div style={{ y: mockupY, opacity: mockupOpacity }}>
-              <div className="rounded-2xl border border-black/10 bg-white overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.04),0_12px_32px_-12px_rgba(0,0,0,0.12)]">
+              <motion.div
+                ref={tiltRef}
+                onMouseMove={handleTiltMove}
+                onMouseLeave={handleTiltLeave}
+                whileHover={{ scale: 1.015 }}
+                transition={{ scale: { type: 'spring', stiffness: 260, damping: 20 } }}
+                style={{ x: tiltX, y: tiltY }}
+                className="rounded-2xl border border-black/10 bg-white overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.05),0_24px_56px_-20px_rgba(0,0,0,0.28)]"
+              >
               <motion.div
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -204,7 +230,7 @@ export function LandingHero() {
                   <ArrowUpRight className="w-4 h-4" />
                 </motion.span>
               </motion.div>
-            </div>
+            </motion.div>
 
             <div className="mt-4 px-1 flex items-center justify-between">
               <p className="text-[11px] font-mono text-muted">

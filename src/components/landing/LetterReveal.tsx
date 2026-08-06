@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 interface LetterRevealProps {
@@ -9,61 +8,110 @@ interface LetterRevealProps {
   phraseTop?: string;
   phraseBottom?: string;
   words?: string[];
-  /** ms each rotating word stays on screen before the next one reveals. */
-  wordInterval?: number;
-  /** delay (s) before the bottom phrase reveals. */
+  /** ms per character while typing. */
+  typeSpeed?: number;
+  /** ms per character while erasing. */
+  eraseSpeed?: number;
+  /** ms a fully-typed word stays on screen. */
+  wordHold?: number;
+  /** ms before the bottom phrase starts typing. */
   bottomDelay?: number;
 }
 
-const lineContainer: Variants = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.04 } },
-};
+function Caret({ blinking = true }: { blinking?: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        'ml-0.5 inline-block h-[0.85em] w-[0.07em] translate-y-[0.08em] bg-success',
+        blinking && 'animate-pulse'
+      )}
+    />
+  );
+}
 
-const lineLetter: Variants = {
-  hidden: { opacity: 0, y: '0.6em', filter: 'blur(6px)' },
-  show: {
-    opacity: 1,
-    y: 0,
-    filter: 'blur(0px)',
-    transition: { type: 'spring', stiffness: 320, damping: 24 },
-  },
-};
-
-const wordContainer: Variants = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.045 } },
-  exit: { transition: { staggerChildren: 0.025, staggerDirection: -1 } },
-};
-
-const wordLetter: Variants = {
-  hidden: { opacity: 0, y: '0.6em', filter: 'blur(6px)' },
-  show: {
-    opacity: 1,
-    y: 0,
-    filter: 'blur(0px)',
-    transition: { type: 'spring', stiffness: 320, damping: 22 },
-  },
-  exit: { opacity: 0, y: '-0.4em', transition: { duration: 0.18, ease: 'easeIn' } },
-};
+function TypeText({
+  text,
+  visibleCount,
+  showCaret,
+  ariaLabel,
+}: {
+  text: string;
+  visibleCount: number;
+  showCaret?: boolean;
+  ariaLabel?: string;
+}) {
+  return (
+    <span aria-label={ariaLabel}>
+      {text.split('').map((ch, i) => (
+        <span key={i} className={cn('whitespace-pre', i >= visibleCount && 'opacity-0')}>
+          {ch === ' ' ? '\u00A0' : ch}
+        </span>
+      ))}
+      {showCaret && <Caret />}
+    </span>
+  );
+}
 
 export function LetterReveal({
   className,
   phraseTop = 'Ask anything.',
   phraseBottom = 'It executes.',
   words = ['buy', 'sell', 'audit', 'check mev', 'gas usage'],
-  wordInterval = 2600,
-  bottomDelay = 1.2,
+  typeSpeed = 55,
+  eraseSpeed = 28,
+  wordHold = 1800,
+  bottomDelay = 1200,
 }: LetterRevealProps) {
+  const [topCount, setTopCount] = useState(0);
+  const [bottomCount, setBottomCount] = useState(0);
   const [wordIndex, setWordIndex] = useState(0);
+  const [charCount, setCharCount] = useState(0);
+  const [phase, setPhase] = useState<'typing' | 'holding' | 'erasing'>('typing');
 
   useEffect(() => {
-    const id = setInterval(
-      () => setWordIndex((i) => (i + 1) % words.length),
-      wordInterval
+    if (topCount >= phraseTop.length) return;
+    const id = setTimeout(() => setTopCount((c) => c + 1), typeSpeed + Math.random() * 30);
+    return () => clearTimeout(id);
+  }, [topCount, phraseTop.length, typeSpeed]);
+
+  useEffect(() => {
+    if (bottomCount >= phraseBottom.length) return;
+    const id = setTimeout(
+      () => setBottomCount((c) => c + 1),
+      bottomDelay + bottomCount * (typeSpeed + Math.random() * 30)
     );
-    return () => clearInterval(id);
-  }, [words.length, wordInterval]);
+    return () => clearTimeout(id);
+  }, [bottomCount, phraseBottom.length, typeSpeed, bottomDelay]);
+
+  useEffect(() => {
+    const word = words[wordIndex];
+    let id: ReturnType<typeof setTimeout>;
+
+    if (phase === 'typing') {
+      if (charCount < word.length) {
+        id = setTimeout(() => setCharCount((c) => c + 1), typeSpeed + Math.random() * 40);
+      } else {
+        id = setTimeout(() => setPhase('holding'), 300);
+      }
+    } else if (phase === 'holding') {
+      id = setTimeout(() => setPhase('erasing'), wordHold);
+    } else {
+      if (charCount > 0) {
+        id = setTimeout(() => setCharCount((c) => c - 1), eraseSpeed + Math.random() * 20);
+      } else {
+        id = setTimeout(() => {
+          setWordIndex((i) => (i + 1) % words.length);
+          setPhase('typing');
+        }, 60);
+      }
+    }
+
+    return () => clearTimeout(id);
+  }, [phase, charCount, wordIndex, words, typeSpeed, eraseSpeed, wordHold]);
+
+  const topTyping = topCount < phraseTop.length;
+  const bottomTyping = bottomCount < phraseBottom.length;
 
   return (
     <h1
@@ -72,60 +120,32 @@ export function LetterReveal({
         className
       )}
     >
-      <motion.span
-        variants={lineContainer}
-        initial="hidden"
-        animate="show"
-        className="block"
-        aria-label={phraseTop}
-      >
-        {phraseTop.split('').map((ch, i) => (
-          <motion.span key={i} variants={lineLetter} className="inline-block whitespace-pre">
-            {ch}
-          </motion.span>
-        ))}
-      </motion.span>
-
-      <span className="block h-[1.05em] overflow-hidden">
-        <AnimatePresence mode="wait">
-          <motion.span
-            key={wordIndex}
-            variants={wordContainer}
-            initial="hidden"
-            animate="show"
-            exit="exit"
-            className="inline-block align-bottom"
-            aria-label={`currently: ${words[wordIndex]}`}
-          >
-            {words[wordIndex].split('').map((ch, i) => (
-              <motion.span key={i} variants={wordLetter} className="inline-block whitespace-pre">
-                {ch === ' ' ? '\u00A0' : ch}
-              </motion.span>
-            ))}
-            <motion.span
-              aria-hidden="true"
-              className="ml-1.5 inline-block h-[0.85em] w-[0.07em] bg-success align-baseline"
-              animate={{ opacity: [1, 0, 1] }}
-              transition={{ duration: 1, repeat: Infinity, ease: 'easeInOut' }}
-            />
-          </motion.span>
-        </AnimatePresence>
+      <span className="block">
+        <TypeText
+          text={phraseTop}
+          visibleCount={topCount}
+          showCaret={topTyping}
+          ariaLabel={phraseTop}
+        />
       </span>
 
-      <motion.span
-        variants={lineContainer}
-        initial="hidden"
-        animate="show"
-        transition={{ delay: bottomDelay }}
-        className="block"
-        aria-label={phraseBottom}
-      >
-        {phraseBottom.split('').map((ch, i) => (
-          <motion.span key={i} variants={lineLetter} className="inline-block whitespace-pre">
-            {ch}
-          </motion.span>
-        ))}
-      </motion.span>
+      <span className="block h-[1.05em] overflow-hidden">
+        <TypeText
+          text={words[wordIndex]}
+          visibleCount={charCount}
+          showCaret
+          ariaLabel={`currently: ${words[wordIndex]}`}
+        />
+      </span>
+
+      <span className="block">
+        <TypeText
+          text={phraseBottom}
+          visibleCount={bottomCount}
+          showCaret={bottomTyping}
+          ariaLabel={phraseBottom}
+        />
+      </span>
     </h1>
   );
 }

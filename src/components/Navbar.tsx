@@ -86,7 +86,7 @@ export function Navbar() {
                 </Button>
               ) : (
                 <>
-                  <Button variant="ghost" size="sm" onClick={() => document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' })}>
+                  <Button variant="ghost" size="sm" onClick={() => document.getElementById('execution')?.scrollIntoView({ behavior: 'smooth' })}>
                     Watch it work
                   </Button>
                   <Button size="sm" className="gap-1.5" onClick={() => router.push('/app')}>
@@ -136,7 +136,7 @@ export function Navbar() {
                         <Button className="w-full justify-center gap-1.5" onClick={() => { router.push('/app'); setIsMobileMenuOpen(false); }}>
                           Launch app <ArrowUpRight className="w-3.5 h-3.5" />
                         </Button>
-                        <Button variant="secondary" className="w-full justify-center" onClick={() => { document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' }); setIsMobileMenuOpen(false); }}>
+                        <Button variant="secondary" className="w-full justify-center" onClick={() => { document.getElementById('execution')?.scrollIntoView({ behavior: 'smooth' }); setIsMobileMenuOpen(false); }}>
                           Watch it work
                         </Button>
                       </>

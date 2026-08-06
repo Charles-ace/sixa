@@ -216,7 +216,8 @@ export function ChatPanel({ walletAddress, chainId = 1, walletConnected, onAudit
   };
 
   return (
-    <div className="flex flex-col h-full rounded-2xl bg-surface/60 border border-border backdrop-blur-xl overflow-hidden">
+    <>
+      <div className="flex flex-col h-full rounded-2xl bg-surface/60 border border-border backdrop-blur-xl overflow-hidden">
       <div className="px-5 py-4 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="relative w-9 h-9 rounded-xl bg-foreground flex items-center justify-center">
@@ -362,6 +363,7 @@ export function ChatPanel({ walletAddress, chainId = 1, walletConnected, onAudit
           Sixa parses intent → simulates → executes via KeeperHub. AI can make mistakes — review every preview.
         </p>
       </div>
+      </div>
 
       <AnimatePresence>
         {(isExecuting || executionResult) && (
@@ -374,6 +376,6 @@ export function ChatPanel({ walletAddress, chainId = 1, walletConnected, onAudit
           />
         )}
       </AnimatePresence>
-    </div>
+    </>
   );
 }
