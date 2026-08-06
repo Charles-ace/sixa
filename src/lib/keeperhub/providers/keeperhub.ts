@@ -1,4 +1,4 @@
-import type { ChainInfo, ExecutionProvider, SimulationOutcome, ExecutionOutcome, BridgeRoute } from './types';
+import type { ChainInfo, ExecutionProvider, SimulationOutcome, ExecutionOutcome, BridgeRoute, CredentialCheck } from './types';
 import { detectEnvironment, resolveChainId, chainName } from './types';
 import { keeperHubFetch, ProviderError } from './http';
 import type { ParsedIntent } from '@/lib/types';
@@ -123,6 +123,30 @@ export class KeeperHubRestProvider implements ExecutionProvider {
 
   isConfigured(): boolean {
     return Boolean(this.apiKey);
+  }
+
+  async verifyCredentials(): Promise<CredentialCheck> {
+    if (!this.isConfigured()) return { ok: false };
+    try {
+      const response = await keeperHubFetch<{ items?: Array<{ name?: string; keyPrefix?: string; expiresAt?: string | null; scope?: string }> }>(this.baseUrl, {
+        method: 'GET',
+        path: '/api/keys?limit=1',
+        apiKey: this.apiKey,
+      });
+      const first = response.data.items?.[0];
+      return {
+        ok: true,
+        keyName: first?.name,
+        keyPrefix: first?.keyPrefix,
+        expiresAt: first?.expiresAt ?? null,
+        scope: first?.scope,
+      };
+    } catch (error) {
+      if (error instanceof ProviderError && (error.status === 401 || error.status === 403)) {
+        return { ok: false, error: error.message };
+      }
+      return { ok: true, error: 'Credentials reachable but key details could not be listed.' };
+    }
   }
 
   private requireConfigured(): void {

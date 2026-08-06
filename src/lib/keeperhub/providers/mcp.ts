@@ -1,4 +1,4 @@
-import type { ChainInfo, ExecutionProvider, SimulationOutcome, ExecutionOutcome, BridgeRoute } from './types';
+import type { ChainInfo, ExecutionProvider, SimulationOutcome, ExecutionOutcome, BridgeRoute, CredentialCheck } from './types';
 import { detectEnvironment, resolveChainId } from './types';
 import { ProviderError, parseJsonFromToolText, parseTextContentResult } from './http';
 import type { ParsedIntent } from '@/lib/types';
@@ -100,6 +100,21 @@ export class KeeperHubMcpProvider implements ExecutionProvider {
 
   isConfigured(): boolean {
     return Boolean(this.apiKey);
+  }
+
+  async verifyCredentials(): Promise<CredentialCheck> {
+    if (!this.isConfigured()) return { ok: false };
+    try {
+      await this.ensureInitialized();
+      const parsed = await this.callToolText('list_integrations', {});
+      if (!parsed.text.trim()) {
+        return { ok: true, error: 'MCP reachable but returned an empty integration list.' };
+      }
+      return { ok: true };
+    } catch (error) {
+      const err = error as ProviderError;
+      return { ok: false, error: err.message };
+    }
   }
 
   private requireConfigured(): void {

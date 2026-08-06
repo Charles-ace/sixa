@@ -1,4 +1,4 @@
-import type { ChainInfo, ExecutionProvider, SimulationOutcome, ExecutionOutcome, BridgeRoute } from './types';
+import type { ChainInfo, ExecutionProvider, SimulationOutcome, ExecutionOutcome, BridgeRoute, CredentialCheck } from './types';
 import { detectEnvironment, resolveChainId } from './types';
 import type { ParsedIntent } from '@/lib/types';
 import { generateId } from '@/lib/utils';
@@ -41,6 +41,10 @@ export class MockProvider implements ExecutionProvider {
 
   isConfigured(): boolean {
     return false;
+  }
+
+  async verifyCredentials(): Promise<CredentialCheck> {
+    return { ok: false };
   }
 
   private estimateGas(intent: ParsedIntent): { units: string; costUsd: number } {

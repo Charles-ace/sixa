@@ -85,6 +85,15 @@ export interface BridgeRoute {
   simulated?: boolean;
 }
 
+export interface CredentialCheck {
+  ok: boolean;
+  keyName?: string;
+  keyPrefix?: string;
+  expiresAt?: string | null;
+  scope?: string;
+  error?: string;
+}
+
 export interface ExecutionProvider {
   readonly id: string;
   readonly environment: ExecutionEnvironment;
@@ -95,6 +104,7 @@ export interface ExecutionProvider {
   getExecutionStatus(executionId: string): Promise<ExecutionOutcome>;
   getSupportedChains(): Promise<ChainInfo[]>;
   getBridgeRoute(intent: ParsedIntent): Promise<BridgeRoute>;
+  verifyCredentials(): Promise<CredentialCheck>;
 }
 
 export const TESTNET_CHAIN_IDS = new Set<number>([

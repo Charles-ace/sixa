@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getExecutionProvider, getConfigStatus, ProviderError, toSimulationResult, toExecutionResult, buildExecutionStages } from '@/lib/keeperhub';
 import type { ParsedIntent } from '@/lib/types';
+import type { CredentialCheck } from '@/lib/keeperhub/providers/types';
 
 function errorResponse(error: unknown) {
   const err = error as ProviderError;
@@ -67,8 +68,17 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   const config = getConfigStatus();
+  let connection: CredentialCheck | null = null;
+  if (config.configured) {
+    try {
+      connection = await getExecutionProvider().verifyCredentials();
+    } catch {
+      connection = null;
+    }
+  }
   return NextResponse.json({
     status: config.configured ? 'ok' : 'degraded',
     ...config,
+    connection,
   });
 }
