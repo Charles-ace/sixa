@@ -1,46 +1,74 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeThroughKeeperHub, simulateIntent, isKeeperHubConfigured, buildExecutionStages } from '@/lib/keeperhub';
+import { getExecutionProvider, getConfigStatus, ProviderError, toSimulationResult, toExecutionResult, buildExecutionStages } from '@/lib/keeperhub';
 import type { ParsedIntent } from '@/lib/types';
+
+function errorResponse(error: unknown) {
+  const err = error as ProviderError;
+  return NextResponse.json(
+    {
+      error: err.message ?? 'Execution failed',
+      ...(err.code ? { code: err.code } : {}),
+      ...(err.hint ? { hint: err.hint } : {}),
+      ...(err.requestId ? { requestId: err.requestId } : {}),
+      ...(err.docs ? { docs: err.docs } : {}),
+    },
+    { status: err.status && err.status >= 400 && err.status < 600 ? err.status : 500 }
+  );
+}
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { intent, walletAddress } = body as { intent: ParsedIntent; walletAddress: string };
+    const { intent } = body as { intent: ParsedIntent };
 
-    if (!intent || !walletAddress) {
-      return NextResponse.json({ error: 'Intent and wallet address are required' }, { status: 400 });
+    if (!intent?.type) {
+      return NextResponse.json({ error: 'Intent is required', code: 'invalid_input' }, { status: 400 });
     }
 
-    const simulation = simulateIntent(intent);
-    const stages = buildExecutionStages(intent);
-    const result = await executeThroughKeeperHub({ intent, simulation, wallet: walletAddress });
+    const provider = getExecutionProvider();
+    const config = getConfigStatus();
+
+    const simulation = await provider.simulate(intent);
+    const simulationResult = toSimulationResult(intent, simulation, provider);
+
+    if (!simulationResult.success) {
+      return NextResponse.json(
+        {
+          error: simulationResult.revertReason ?? 'Simulation failed',
+          ...(simulationResult.errorCode ? { code: simulationResult.errorCode } : {}),
+          ...(simulationResult.unsupported ? { unsupported: simulationResult.unsupported } : {}),
+          simulation: simulationResult,
+          keeperHub: config,
+        },
+        { status: 422 }
+      );
+    }
+
+    const outcome = await provider.execute(intent);
+    const result = toExecutionResult(outcome, simulationResult, provider);
 
     return NextResponse.json({
-      stages,
-      simulation,
+      stages: buildExecutionStages(intent, provider.id),
+      simulation: simulationResult,
       result,
-      keeperHub: {
-        configured: isKeeperHubConfigured(),
-        mode: isKeeperHubConfigured() ? 'live' : 'simulated',
-        endpoint: isKeeperHubConfigured() ? 'KeeperHub Direct Execution API' : 'local simulation engine',
-      },
+      keeperHub: config,
     });
   } catch (error) {
+    if (error instanceof ProviderError) {
+      return errorResponse(error);
+    }
     console.error('KeeperHub execute error:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Execution failed' },
+      { error: error instanceof Error ? error.message : 'Execution failed', code: 'internal_error' },
       { status: 500 }
     );
   }
 }
 
 export async function GET() {
+  const config = getConfigStatus();
   return NextResponse.json({
-    status: 'ok',
-    configured: isKeeperHubConfigured(),
-    mode: isKeeperHubConfigured() ? 'live' : 'simulated',
-    message: isKeeperHubConfigured()
-      ? 'KeeperHub Direct Execution API connected'
-      : 'KeeperHub not configured — running local simulation. Set KEEPERHUB_ENDPOINT and KEEPERHUB_API_KEY to enable live execution.',
+    status: config.configured ? 'ok' : 'degraded',
+    ...config,
   });
 }

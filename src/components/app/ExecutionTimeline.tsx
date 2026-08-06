@@ -153,18 +153,40 @@ export function ExecutionTimeline({ stages, isRunning, result, onClose }: Execut
         <div className="px-6 py-4 border-t border-border">
           {result ? (
             <div className={cn(
-              'rounded-xl px-4 py-3 text-sm font-medium flex items-center gap-2',
+              'rounded-xl px-4 py-3 text-sm font-medium flex flex-col gap-1.5',
               result.status === 'success' ? 'bg-success/10 text-success border border-success/25' : 'bg-error/10 text-error border border-error/25'
             )}>
-              {result.status === 'success' ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> : <XCircle className="w-4 h-4 flex-shrink-0" />}
-              <span className="font-mono text-xs truncate" title={result.txHash}>
-                {result.status === 'success' ? `Confirmed · ${result.txHash.slice(0, 12)}…${result.txHash.slice(-6)}` : 'Execution failed'}
-              </span>
+              <div className="flex items-center gap-2">
+                {result.status === 'success' ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> : <XCircle className="w-4 h-4 flex-shrink-0" />}
+                <span className="font-mono text-xs truncate" title={result.txHash}>
+                  {result.status === 'success'
+                    ? `${result.simulated ? 'Dev simulation' : 'Confirmed'} · ${result.txHash ? `${result.txHash.slice(0, 12)}…${result.txHash.slice(-6)}` : 'no hash'}`
+                    : 'Execution failed — nothing was broadcast'}
+                </span>
+              </div>
+              {result.error && (
+                <p className="text-xs font-normal text-error/90">
+                  {result.error.message}
+                  {result.error.hint ? ` — ${result.error.hint}` : ''}
+                </p>
+              )}
+              {result.status === 'success' && !result.simulated && (
+                <p className="text-xs font-normal text-success/80">
+                  {result.verified === false
+                    ? '⚠ Receipt verification failed on-chain — check the explorer link.'
+                    : 'Receipt verified on-chain.'}
+                </p>
+              )}
+              {result.status === 'success' && result.simulated && (
+                <p className="text-xs font-normal text-secondary">
+                  DEV MODE — no real transaction. Configure KEEPERHUB_API_KEY for live execution.
+                </p>
+              )}
             </div>
           ) : (
             <p className="text-xs text-secondary text-center flex items-center justify-center gap-2">
               <ShieldCheck className="w-3.5 h-3.5 text-foreground" />
-              Every step is verified and logged to the audit trail
+              Each step reflects the live provider response
             </p>
           )}
         </div>

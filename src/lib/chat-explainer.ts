@@ -77,14 +77,30 @@ export function buildIntentExplanation(intent: ParsedIntent, simulation?: Simula
 
   if (simulation) {
     lines.push('');
-    lines.push(`• Estimated gas: $${simulation.gasEstimateUsd.toFixed(2)}`);
+    if (!simulation.success) {
+      lines.push(`⚠ Simulation failed: ${simulation.revertReason ?? 'the provider could not simulate this transaction.'}`);
+      if (simulation.errorCode) lines.push(`• Error code: \`${simulation.errorCode}\``);
+      if (simulation.unsupported?.suggestion) lines.push(`• ${simulation.unsupported.suggestion}`);
+      if (simulation.simulated) lines.push('• This is a dev simulation — no real transaction was prepared.');
+      lines.push('');
+      lines.push('Nothing was sent. Fix the issue above or try a different request.');
+      return lines.join('\n');
+    }
+    if (simulation.gasEstimateUsd != null) {
+      lines.push(`• Estimated gas: $${simulation.gasEstimateUsd.toFixed(2)}`);
+    } else if (simulation.gasEstimateUnits) {
+      lines.push(`• Estimated gas: ${simulation.gasEstimateUnits} units (live simulation)`);
+    }
+    if (simulation.strategy) lines.push(`• Gas strategy: ${simulation.strategy}`);
     lines.push(`• ${simulation.expectedOutcome}`);
     if (simulation.warnings.length > 0) {
       lines.push('');
       simulation.warnings.forEach((w) => lines.push(`⚠ ${w}`));
     }
     lines.push('');
-    lines.push('Transaction simulation completed successfully.');
+    lines.push(simulation.simulated
+      ? 'Transaction simulation completed (dev mode — not a real preflight).'
+      : 'Transaction simulation completed successfully on chain.');
   } else {
     lines.push('');
     lines.push('I\'ll simulate the transaction before proposing execution.');

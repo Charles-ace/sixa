@@ -47,6 +47,7 @@ declare module 'lucide-react' {
   export const Send: LucideIcon;
   export const Shield: LucideIcon;
   export const ShieldCheck: LucideIcon;
+  export const ShieldOff: LucideIcon;
   export const Sparkles: LucideIcon;
   export const Star: LucideIcon;
   export const Target: LucideIcon;

@@ -8,13 +8,12 @@ const stack = [
   { layer: 'Wallet Provider', file: 'EIP-1193 · viem', does: 'MetaMask & EVM wallet session, balances, networks', state: 'Live' },
   { layer: 'LLM', file: 'OpenRouter · llama 3.1', does: 'Explains intents in natural language', state: 'Live' },
   { layer: 'Intent Parser', file: 'sixa/intent-parser.ts', does: 'Maps sentences → swap / bridge / stake / portfolio', state: 'Live' },
-  { layer: 'Simulation', file: 'keeperhub/simulate.ts', does: 'Revert checks, gas estimate, slippage, warnings', state: 'Live' },
-  { layer: 'Execution', file: 'keeperhub/relay.ts', does: 'Smart gas, private routing, broadcast, audit log', state: 'Demo relay' },
+  { layer: 'Simulation', file: 'keeperhub/providers/', does: 'On-chain dry-run, revert checks, live gas estimate', state: 'Live' },
+  { layer: 'Execution', file: 'keeperhub/providers/', does: 'REST / MCP transports, idempotent broadcast, receipt verification, audit log', state: 'Live' },
 ];
 
 const STATE_COLORS: Record<string, string> = {
   Live: 'text-success border-success/30 bg-success/5',
-  'Demo relay': 'text-foreground border-black/20 bg-black/5',
 };
 
 export function ExecutionStack() {

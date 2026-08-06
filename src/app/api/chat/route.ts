@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { chat, LLMError } from '@/lib/llm';
 import { parseIntent, isExecutable } from '@/lib/intent-parser';
 import { SIXA_SYSTEM_PROMPT, buildIntentExplanation, buildClarification } from '@/lib/chat-explainer';
-import { simulateIntent } from '@/lib/keeperhub';
+import { simulateForChat, getConfigStatus } from '@/lib/keeperhub';
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,13 +24,16 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const simulation = isExecutable(intent) ? simulateIntent(intent) : undefined;
+    const config = getConfigStatus();
+    const simulation = isExecutable(intent) ? await simulateForChat(intent) : undefined;
     const fallbackExplanation = buildIntentExplanation(intent, simulation, Boolean(walletAddress));
 
     const contextLines = [
       `Wallet connected: ${walletAddress ? 'yes' : 'no'}`,
       walletAddress ? `Wallet: ${walletAddress}` : '',
       `Chain ID: ${chainId ?? 1}`,
+      `Execution provider: ${config.provider} (${config.mode})`,
+      `Protected execution: ${config.protectedExecution ? 'enabled' : 'disabled'}`,
       `Parsed intent: ${JSON.stringify(intent)}`,
       simulation ? `Simulation: ${JSON.stringify(simulation)}` : '',
     ].filter(Boolean).join('\n');

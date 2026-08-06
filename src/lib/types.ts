@@ -1,5 +1,13 @@
 export type ActionType = 'swap' | 'bridge' | 'stake' | 'portfolio' | 'balance' | 'history' | 'send' | 'unknown';
 
+export type ExecutionEnvironment = 'production' | 'testnet' | 'development';
+
+export interface UnsupportedCapability {
+  code: string;
+  message: string;
+  suggestion?: string;
+}
+
 export interface TokenAmount {
   symbol: string;
   amount: number;
@@ -24,12 +32,25 @@ export interface ParsedIntent {
 
 export interface SimulationResult {
   success: boolean;
-  gasEstimateUsd: number;
-  gasLimit: string;
-  slippage: number;
+  wouldRevert?: boolean;
+  revertReason?: string;
+  errorCode?: string;
+  from?: string;
+  to?: string;
+  unsupported?: UnsupportedCapability;
+  gasEstimateUnits?: string;
+  gasEstimateUsd?: number | null;
+  gasLimit?: string;
+  congestion?: 'low' | 'medium' | 'high' | 'unknown';
+  strategy?: string;
+  slippage?: number;
   warnings: string[];
   expectedOutcome: string;
   simulatedAt: string;
+  provider?: string;
+  environment?: ExecutionEnvironment;
+  protectedExecution?: boolean;
+  simulated?: boolean;
 }
 
 export interface ExecutionStage {
@@ -44,12 +65,23 @@ export interface ExecutionResult {
   txHash: string;
   status: 'success' | 'failed';
   gasUsed: string;
-  gasCostUsd: number;
+  gasCostUsd: number | null;
   executedAt: string;
   auditId: string;
   executionId?: string;
   transactionLink?: string;
-  relayedVia?: 'keeperhub' | 'local-simulation';
+  relayedVia?: 'keeperhub' | 'keeperhub-mcp' | 'mock';
+  simulated?: boolean;
+  environment?: ExecutionEnvironment;
+  protectedExecution?: boolean;
+  verified?: boolean;
+  receipts?: Array<{ hash?: string; verified?: boolean; receiptStatus?: string }>;
+  error?: {
+    code?: string;
+    message: string;
+    hint?: string;
+    requestId?: string;
+  };
 }
 
 export interface AuditEntry {

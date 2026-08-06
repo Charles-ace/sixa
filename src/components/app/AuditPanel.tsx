@@ -91,7 +91,12 @@ export function AuditPanel({ entries }: AuditPanelProps) {
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-secondary font-mono">
                     <span>{entry.wallet.slice(0, 8)}…{entry.wallet.slice(-4)}</span>
                     <span>{entry.simulation.expectedOutcome}</span>
-                    <span>Gas: {entry.execution.gasCostUsd.toFixed(2)}</span>
+                    {entry.execution.gasCostUsd != null && (
+                      <span>Gas: ${entry.execution.gasCostUsd.toFixed(2)}</span>
+                    )}
+                    {entry.execution.simulated && (
+                      <span className="text-warning">DEV SIMULATION</span>
+                    )}
                   </div>
 
                   <div className="mt-2 flex items-center gap-2">

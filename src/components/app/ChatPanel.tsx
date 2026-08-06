@@ -38,7 +38,13 @@ export function ChatPanel({ walletAddress, chainId = 1, walletConnected, onAudit
   const [stages, setStages] = useState<ExecutionStage[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionResult, setExecutionResult] = useState<ExecutionResult | undefined>();
-  const [keeperHubMode, setKeeperHubMode] = useState<string>('');
+  const [keeperConfig, setKeeperConfig] = useState<{
+    mode: string;
+    configured: boolean;
+    protectedExecution: boolean;
+    environment?: string;
+    chainName?: string;
+  }>({ mode: 'simulated', configured: false, protectedExecution: false });
   const [runId, setRunId] = useState(0);
 
   const endRef = useRef<HTMLDivElement>(null);
@@ -51,8 +57,16 @@ export function ChatPanel({ walletAddress, chainId = 1, walletConnected, onAudit
   useEffect(() => {
     fetch('/api/keeperhub')
       .then((r) => r.json())
-      .then((data) => setKeeperHubMode(data.mode))
-      .catch(() => setKeeperHubMode('simulated'));
+      .then((data) =>
+        setKeeperConfig({
+          mode: data.mode ?? 'simulated',
+          configured: Boolean(data.configured),
+          protectedExecution: Boolean(data.protectedExecution),
+          environment: data.environment,
+          chainName: data.chainName,
+        })
+      )
+      .catch(() => setKeeperConfig({ mode: 'simulated', configured: false, protectedExecution: false }));
   }, []);
 
   const appendMessage = useCallback((message: ChatMessage) => {
@@ -130,14 +144,51 @@ export function ChatPanel({ walletAddress, chainId = 1, walletConnected, onAudit
         body: JSON.stringify({ intent: preview.intent, walletAddress }),
       });
 
-      if (!response.ok) throw new Error('Execution failed');
+      const data = await response.json().catch(() => null);
 
-      const data = await response.json();
-      setStages(data.stages);
+      if (!response.ok) {
+        appendMessage({
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: [
+            `⚠ Execution blocked — no transaction was broadcast.`,
+            '',
+            `• ${data?.error ?? 'KeeperHub rejected the request.'}`,
+            ...(data?.code ? [`• Code: \`${data.code}\``] : []),
+            ...(data?.hint ? [`• ${data.hint}`] : []),
+            '',
+            'Fix the issue above, then confirm again to retry, or cancel.',
+          ].join('\n'),
+          status: 'error',
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      setStages(data.stages ?? []);
 
       await new Promise((resolve) => setTimeout(resolve, 750));
 
       const result: ExecutionResult = data.result;
+      if (result.error && result.status === 'failed') {
+        setExecutionResult(result);
+        appendMessage({
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: [
+            `⚠ Execution failed — no transaction was broadcast.`,
+            '',
+            `• ${result.error.message}`,
+            ...(result.error.hint ? [`• ${result.error.hint}`] : []),
+            '',
+            'Fix the issue above, then confirm again to retry.',
+          ].join('\n'),
+          status: 'error',
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
       setExecutionResult(result);
 
       const auditEntry: AuditEntry = {
@@ -151,15 +202,24 @@ export function ChatPanel({ walletAddress, chainId = 1, walletConnected, onAudit
       };
       onAuditEntry(auditEntry);
 
+      const gasLine = result.gasCostUsd != null
+        ? `• Gas cost: $${result.gasCostUsd.toFixed(2)}`
+        : null;
+
       appendMessage({
         id: crypto.randomUUID(),
         role: 'assistant',
         content: [
-          `✅ ${ACTION_LABELS[preview.intent.type]} executed successfully.`,
+          `${result.simulated ? '🧪 DEV SIMULATION' : '✅'} ${ACTION_LABELS[preview.intent.type]} executed${result.simulated ? ' (mock — nothing sent on-chain)' : ' successfully.'}`,
           '',
-          `• Transaction: \`${result.txHash}\``,
-          `• Gas cost: $${result.gasCostUsd.toFixed(2)}`,
-          '• Verified by KeeperHub audit trail.',
+          ...(result.txHash ? [`• Transaction: \`${result.txHash}\``] : []),
+          ...(gasLine ? [gasLine] : []),
+          ...(result.verified === false
+            ? ['• ⚠ On-chain receipt verification failed — check the explorer link.']
+            : result.simulated
+              ? ['• No on-chain receipt — dev mode only.']
+              : ['• Receipt verified on-chain.']),
+          ...(result.transactionLink ? [`• Explorer: ${result.transactionLink}`] : []),
         ].join('\n'),
         timestamp: new Date().toISOString(),
       });
@@ -169,7 +229,7 @@ export function ChatPanel({ walletAddress, chainId = 1, walletConnected, onAudit
       appendMessage({
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: 'Execution could not be completed. The transaction was not broadcast — nothing was sent.',
+        content: 'Execution could not be completed. The transaction was not broadcast — nothing was sent. Confirm again to retry.',
         status: 'error',
         timestamp: new Date().toISOString(),
       });
@@ -230,13 +290,26 @@ export function ChatPanel({ walletAddress, chainId = 1, walletConnected, onAudit
           </div>
         </div>
         <div className="flex items-center gap-2 text-xs">
-          <span className={cn(
-            'px-2.5 py-1 rounded-full border font-medium',
-            keeperHubMode === 'live'
-              ? 'bg-success/10 text-success border-success/25'
-              : 'bg-black/5 text-foreground border-black/15'
-          )}>
-            {keeperHubMode === 'live' ? 'KeeperHub live' : 'KeeperHub · demo mode'}
+          <span
+            className={cn(
+              'px-2.5 py-1 rounded-full border font-medium',
+              keeperConfig.mode === 'live' || keeperConfig.mode === 'testnet'
+                ? 'bg-success/10 text-success border-success/25'
+                : keeperConfig.mode === 'simulated'
+                  ? 'bg-black/5 text-foreground border-black/15'
+                  : 'bg-error/10 text-error border-error/25'
+            )}
+            title={keeperConfig.mode === 'live' || keeperConfig.mode === 'testnet'
+              ? 'Protected execution enabled — writes relay through KeeperHub'
+              : 'No KeeperHub API key configured'}
+          >
+            {keeperConfig.mode === 'live'
+              ? `KeeperHub live${keeperConfig.chainName ? ` · ${keeperConfig.chainName}` : ''}`
+              : keeperConfig.mode === 'testnet'
+                ? `KeeperHub testnet${keeperConfig.chainName ? ` · ${keeperConfig.chainName}` : ''}`
+                : keeperConfig.mode === 'simulated'
+                  ? 'KeeperHub · dev simulation'
+                  : 'KeeperHub not configured'}
           </span>
         </div>
       </div>
