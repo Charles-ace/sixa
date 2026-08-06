@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { Github, MessageSquare, Mail } from 'lucide-react';
 
 const footerLinks: Record<string, { label: string; href: string; external?: boolean }[]> = {
@@ -31,9 +32,14 @@ export function Footer() {
         <div className="grid lg:grid-cols-6 gap-10 mb-14">
           <div className="lg:col-span-2 space-y-4">
             <Link href="/" className="flex items-center gap-2.5" aria-label="Sixa Home">
-              <div className="w-8 h-8 rounded-full bg-foreground text-background flex items-center justify-center">
-                <span className="text-sm font-bold leading-none">S</span>
-              </div>
+              <Image
+                src="/sixa-logo.svg"
+                alt=""
+                aria-hidden="true"
+                width={32}
+                height={32}
+                className="w-8 h-8"
+              />
               <span className="font-semibold text-[15px] tracking-tight">sixa</span>
             </Link>
             <p className="text-sm text-secondary leading-relaxed max-w-xs">

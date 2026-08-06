@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, ArrowUpRight } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { ScrollProgress } from '@/components/ScrollProgress';
 import { cn } from '@/lib/utils';
 
 const NAV_LINKS = [
@@ -33,6 +35,7 @@ export function Navbar() {
 
   return (
     <>
+      <ScrollProgress />
       <motion.header
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -52,9 +55,15 @@ export function Navbar() {
               className="flex items-center gap-2.5 text-foreground hover:opacity-70 transition-opacity"
               aria-label="Sixa Home"
             >
-              <div className="w-8 h-8 rounded-full bg-foreground text-background flex items-center justify-center">
-                <span className="text-sm font-bold leading-none">S</span>
-              </div>
+              <Image
+                src="/sixa-logo.svg"
+                alt=""
+                aria-hidden="true"
+                width={32}
+                height={32}
+                priority
+                className="w-8 h-8"
+              />
               <span className="font-semibold text-[15px] tracking-tight">sixa</span>
             </Link>
 

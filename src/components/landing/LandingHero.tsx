@@ -1,9 +1,12 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { useRef } from 'react';
+import { motion, useScroll, useTransform } from 'framer-motion';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { ArrowUpRight, ShieldCheck, PlayCircle, ScrollText, Zap, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { LetterReveal } from '@/components/landing/LetterReveal';
 
 const TRUST_ROW = [
   { icon: ShieldCheck, label: 'Non-custodial' },
@@ -14,11 +17,22 @@ const TRUST_ROW = [
 
 export function LandingHero() {
   const router = useRouter();
+  const sectionRef = useRef<HTMLElement>(null);
+
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ['start start', 'end start'],
+  });
+
+  const mockupY = useTransform(scrollYProgress, [0, 1], [0, 80]);
+  const mockupOpacity = useTransform(scrollYProgress, [0, 0.75], [1, 0]);
+  const textY = useTransform(scrollYProgress, [0, 1], [0, 40]);
+
   return (
-    <section className="relative overflow-hidden pt-16 pb-20 md:pt-24 md:pb-32">
+    <section ref={sectionRef} className="relative overflow-hidden pt-16 pb-20 md:pt-24 md:pb-32">
       <div className="mx-auto max-w-6xl px-6">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-16">
-          <div className="max-w-2xl">
+          <motion.div style={{ y: textY }} className="max-w-2xl">
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
@@ -31,10 +45,7 @@ export function LandingHero() {
               </span>
             </motion.div>
 
-            <h1 className="text-5xl md:text-7xl font-bold tracking-tight leading-[0.98] text-balance mb-7">
-              <span className="block">Ask anything.</span>
-              <span className="block">It executes.</span>
-            </h1>
+            <LetterReveal className="mb-7" />
 
             <motion.p
               initial={{ opacity: 0, y: 14 }}
@@ -84,7 +95,7 @@ export function LandingHero() {
                 </span>
               ))}
             </motion.div>
-          </div>
+          </motion.div>
 
           <motion.div
             initial={{ opacity: 0, y: 24 }}
@@ -92,55 +103,107 @@ export function LandingHero() {
             transition={{ duration: 0.6, delay: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
             className="w-full lg:w-[420px] flex-shrink-0"
           >
-            <div className="rounded-2xl border border-black/10 bg-white overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.04),0_12px_32px_-12px_rgba(0,0,0,0.12)]">
-              <div className="px-4 py-3 border-b border-black/10 flex items-center justify-between">
+            <motion.div style={{ y: mockupY, opacity: mockupOpacity }}>
+              <div className="rounded-2xl border border-black/10 bg-white overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.04),0_12px_32px_-12px_rgba(0,0,0,0.12)]">
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.45 }}
+                className="px-4 py-3 border-b border-black/10 flex items-center justify-between"
+              >
                 <span className="flex items-center gap-2 text-xs font-mono text-secondary">
-                  <span className="w-5 h-5 rounded-full bg-foreground text-background flex items-center justify-center">
-                    <span className="text-[9px] font-bold leading-none">S</span>
-                  </span>
+                  <Image
+                    src="/sixa-logo.svg"
+                    alt=""
+                    aria-hidden="true"
+                    width={20}
+                    height={20}
+                    className="w-5 h-5"
+                  />
                   sixa · chat
                 </span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-black/5 text-foreground border border-black/10">
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-black/5 text-foreground border border-black/10 flex items-center gap-1.5">
+                  <motion.span
+                    className="w-1.5 h-1.5 rounded-full bg-success"
+                    animate={{ opacity: [1, 0.35, 1], scale: [1, 1.35, 1] }}
+                    transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+                  />
                   keeperhub · live
                 </span>
-              </div>
+              </motion.div>
 
               <div className="p-4 space-y-3">
-                <div className="flex justify-end">
+                <motion.div
+                  initial={{ opacity: 0, x: 24 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.4, delay: 0.7, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  className="flex justify-end"
+                >
                   <div className="max-w-[85%] rounded-2xl rounded-br-md bg-foreground text-background px-4 py-2.5 text-sm">
                     swap 100 USDC to ETH
                   </div>
-                </div>
+                </motion.div>
 
-                <div className="rounded-xl border border-black/10 bg-background/60 p-3.5 font-mono text-[12px] leading-relaxed text-foreground space-y-2">
-                  <p className="flex items-center gap-1.5 text-secondary">
-                    <Sparkles className="w-3 h-3" />
-                    intent parsed
-                  </p>
-                  <p className="flex items-start gap-2">
-                    <span className="text-success">✓</span>
-                    swap · 100 USDC → ETH · best route
-                  </p>
-                  <p className="flex items-start gap-2">
-                    <span className="text-success">✓</span>
-                    simulated · 0 reverts · gas $0.42
-                  </p>
-                  <p className="flex items-start gap-2">
-                    <span className="text-success">✓</span>
-                    executed via keeperhub
-                  </p>
-                  <p className="text-secondary">0x3f9a…c21e · audit logged</p>
-                </div>
+                <motion.div
+                  initial={{ opacity: 0, y: 14 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.45, delay: 0.9, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  className="rounded-xl border border-black/10 bg-background/60 p-3.5 font-mono text-[12px] leading-relaxed text-foreground space-y-2"
+                >
+                  {[
+                    <p key="h" className="flex items-center gap-1.5 text-secondary">
+                      <Sparkles className="w-3 h-3" />
+                      intent parsed
+                    </p>,
+                    <p key="a" className="flex items-start gap-2">
+                      <span className="text-success">✓</span>
+                      swap · 100 USDC → ETH · best route
+                    </p>,
+                    <p key="b" className="flex items-start gap-2">
+                      <span className="text-success">✓</span>
+                      simulated · 0 reverts · gas $0.42
+                    </p>,
+                    <p key="c" className="flex items-start gap-2">
+                      <span className="text-success">✓</span>
+                      executed via keeperhub
+                    </p>,
+                    <p key="d" className="text-secondary">0x3f9a…c21e · audit logged</p>,
+                  ].map((line, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3, delay: 1.05 + i * 0.16, ease: 'easeOut' }}
+                    >
+                      {line}
+                    </motion.div>
+                  ))}
+                </motion.div>
               </div>
 
-              <div className="px-4 pb-4 flex items-center gap-2">
-                <div className="flex-1 rounded-full border border-black/10 bg-background/60 px-4 py-2.5 text-sm text-muted">
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 1.95 }}
+                className="px-4 pb-4 flex items-center gap-2"
+              >
+                <div className="flex-1 rounded-full border border-black/10 bg-background/60 px-4 py-2.5 text-sm text-muted flex items-center gap-1">
                   ask anything, privately…
+                  <motion.span
+                    className="inline-block w-[5px] h-[13px] rounded-full bg-foreground/60"
+                    animate={{ opacity: [1, 0, 1] }}
+                    transition={{ duration: 1.1, repeat: Infinity, ease: 'easeInOut' }}
+                  />
                 </div>
-                <span className="w-8 h-8 rounded-full bg-foreground text-background flex items-center justify-center flex-shrink-0">
+                <motion.span
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 260, damping: 18, delay: 2.1 }}
+                  className="w-8 h-8 rounded-full bg-foreground text-background flex items-center justify-center flex-shrink-0"
+                >
                   <ArrowUpRight className="w-4 h-4" />
-                </span>
-              </div>
+                </motion.span>
+              </motion.div>
             </div>
 
             <div className="mt-4 px-1 flex items-center justify-between">
@@ -149,6 +212,7 @@ export function LandingHero() {
               </p>
               <p className="text-[11px] font-mono text-muted">dip −3% → buy</p>
             </div>
+            </motion.div>
           </motion.div>
         </div>
       </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { MessageSquare, BrainCircuit, PlayCircle, Rocket, ScrollText } from 'lucide-react';
+import { MessageSquare, BrainCircuit, PlayCircle, Rocket, ScrollText, Earth } from 'lucide-react';
 
 const pipeline = [
   { icon: MessageSquare, label: 'Sentence', detail: '"swap 100 USDC to ETH"' },
@@ -10,6 +10,15 @@ const pipeline = [
   { icon: Rocket, label: 'Execute', detail: 'KeeperHub relay · private route' },
   { icon: ScrollText, label: 'Audit', detail: 'hash logged · searchable' },
 ];
+
+const TRAVEL = ['10%', '30%', '50%', '70%', '90%'];
+
+const globeTransition = {
+  left: { duration: 4.5, repeat: Infinity, repeatDelay: 1.2, ease: 'linear' },
+  top: { duration: 4.5, repeat: Infinity, repeatDelay: 1.2, ease: 'linear' },
+  opacity: { duration: 4.5, repeat: Infinity, repeatDelay: 1.2, ease: 'linear' },
+  default: { duration: 4.5, repeat: Infinity, repeatDelay: 1.2, ease: 'linear' },
+};
 
 export function HowItWorks() {
   return (
@@ -36,7 +45,44 @@ export function HowItWorks() {
           in the app — nothing executes silently.
         </motion.p>
 
-        <div className="flex flex-col lg:flex-row items-stretch gap-4">
+        <div className="relative flex flex-col lg:flex-row items-stretch gap-4">
+          <div
+            className="hidden lg:block absolute inset-x-0 top-10 h-px bg-black/10"
+            aria-hidden="true"
+          />
+          <div
+            className="lg:hidden absolute left-[22px] top-6 bottom-6 w-px bg-black/10"
+            aria-hidden="true"
+          />
+
+          <motion.span
+            initial={{ left: '10%', opacity: 0 }}
+            whileInView={{
+              left: TRAVEL,
+              opacity: [0, 1, 1, 1, 1, 0],
+            }}
+            viewport={{ once: false, amount: 0.6 }}
+            transition={globeTransition}
+            className="hidden lg:flex absolute top-10 -translate-x-1/2 -translate-y-1/2 z-10 w-5 h-5 rounded-full bg-white border border-black/10 shadow-[0_2px_8px_rgba(0,0,0,0.14),0_0_0_4px_rgba(14,159,110,0.12)] items-center justify-center"
+            aria-hidden="true"
+          >
+            <Earth className="w-3 h-3 text-success" />
+          </motion.span>
+
+          <motion.span
+            initial={{ top: '10%', opacity: 0 }}
+            whileInView={{
+              top: TRAVEL,
+              opacity: [0, 1, 1, 1, 1, 0],
+            }}
+            viewport={{ once: false, amount: 0.6 }}
+            transition={globeTransition}
+            className="lg:hidden absolute left-[22px] -translate-x-1/2 -translate-y-1/2 z-10 w-5 h-5 rounded-full bg-white border border-black/10 shadow-[0_2px_8px_rgba(0,0,0,0.14),0_0_0_4px_rgba(14,159,110,0.12)] items-center justify-center flex"
+            aria-hidden="true"
+          >
+            <Earth className="w-3 h-3 text-success" />
+          </motion.span>
+
           {pipeline.map((stage, index) => (
             <motion.div
               key={stage.label}
@@ -46,24 +92,59 @@ export function HowItWorks() {
               transition={{ duration: 0.45, delay: index * 0.08 }}
               className="flex-1 relative"
             >
-              {index < pipeline.length - 1 && (
-                <div
-                  className="hidden lg:block absolute top-10 right-[-14px] w-7 h-px bg-black/20 z-10"
-                  aria-hidden="true"
-                />
-              )}
-              <div className="h-full rounded-2xl border border-black/10 bg-white px-6 py-6 card-hover">
+              <motion.div
+                whileHover={{ y: -3 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                className="h-full rounded-2xl border border-black/10 bg-white px-6 py-6 card-hover"
+              >
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-2xl font-mono font-bold text-black/15">
+                  <motion.span
+                    initial={{ opacity: 0, scale: 1.4 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    viewport={{ once: true }}
+                    transition={{
+                      type: 'spring',
+                      stiffness: 260,
+                      damping: 18,
+                      delay: 0.12 + index * 0.08,
+                    }}
+                    className="text-2xl font-mono font-bold text-black/15"
+                  >
                     {String(index + 1).padStart(2, '0')}
-                  </span>
-                  <stage.icon className="w-4 h-4 text-secondary" />
+                  </motion.span>
+                  <motion.span
+                    initial={{ opacity: 0, scale: 0.5, rotate: -90 }}
+                    whileInView={{ opacity: 1, scale: 1, rotate: 0 }}
+                    viewport={{ once: true }}
+                    transition={{
+                      type: 'spring',
+                      stiffness: 260,
+                      damping: 16,
+                      delay: 0.2 + index * 0.08,
+                    }}
+                  >
+                    <stage.icon className="w-4 h-4 text-secondary" />
+                  </motion.span>
                 </div>
-                <p className="text-[11px] font-mono uppercase tracking-wider text-secondary mb-2">
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  whileInView={{ opacity: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.4, delay: 0.28 + index * 0.08 }}
+                  className="text-[11px] font-mono uppercase tracking-wider text-secondary mb-2"
+                >
                   {stage.label}
-                </p>
-                <p className="text-sm text-secondary font-mono">{stage.detail}</p>
-              </div>
+                </motion.p>
+                <motion.p
+                  initial={{ opacity: 0, x: -8 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.4, delay: 0.36 + index * 0.08 }}
+                  className="text-sm text-secondary font-mono"
+                >
+                  {stage.detail}
+                </motion.p>
+              </motion.div>
             </motion.div>
           ))}
         </div>

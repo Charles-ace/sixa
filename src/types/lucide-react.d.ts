@@ -23,6 +23,7 @@ declare module 'lucide-react' {
   export const ChevronUp: LucideIcon;
   export const Coins: LucideIcon;
   export const Copy: LucideIcon;
+  export const Earth: LucideIcon;
   export const ExternalLink: LucideIcon;
   export const FileCheck2: LucideIcon;
   export const Fuel: LucideIcon;
