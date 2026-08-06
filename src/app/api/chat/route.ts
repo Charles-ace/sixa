@@ -1,67 +1,85 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { chat, chatWithSystemPrompt, LLMError } from '@/lib/llm';
-
-const SIXA_SYSTEM_PROMPT = `You are Sixa, an autonomous AI yield optimization agent for DeFi. 
-Your role is to help users maximize returns on their crypto assets using natural language.
-
-You have access to analyze DeFi markets, evaluate risk across protocols, and recommend or execute the highest-quality yield opportunities.
-
-When users ask for recommendations, you should explain:
-- Expected APY
-- TVL (Total Value Locked)
-- Audit status
-- Historical reliability
-- Estimated gas costs
-- Risk score (1-10)
-- Reasons for recommendation
-
-Be concise, professional, and actionable. Use formatting for readability.
-Never make up specific numbers - if you don't have real-time data, say you're simulating based on typical ranges.`;
+import { chat, LLMError } from '@/lib/llm';
+import { parseIntent, isExecutable } from '@/lib/intent-parser';
+import { SIXA_SYSTEM_PROMPT, buildIntentExplanation, buildClarification } from '@/lib/chat-explainer';
+import { simulateIntent } from '@/lib/keeperhub';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { message, history = [] } = body;
+    const { message, history = [], walletAddress, chainId } = body;
 
     if (!message || typeof message !== 'string') {
-      return NextResponse.json(
-        { error: 'Message is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Message is required' }, { status: 400 });
     }
 
-    const messages = [
-      { role: 'system' as const, content: SIXA_SYSTEM_PROMPT },
-      ...history.map((msg: { role: string; content: string }) => ({
-        role: msg.role as 'user' | 'assistant',
-        content: msg.content,
-      })),
-      { role: 'user' as const, content: message },
-    ];
+    const intent = parseIntent(message);
 
-    const response = await chat(messages, {
-      model: 'meta-llama/llama-3.1-8b-instruct:free',
-      temperature: 0.7,
-      maxTokens: 2048,
-    });
+    if (intent.type === 'unknown') {
+      return NextResponse.json({
+        content: buildIntentExplanation(intent),
+        intent,
+        executable: false,
+        simulation: null,
+      });
+    }
+
+    const simulation = isExecutable(intent) ? simulateIntent(intent) : undefined;
+    const fallbackExplanation = buildIntentExplanation(intent, simulation, Boolean(walletAddress));
+
+    const contextLines = [
+      `Wallet connected: ${walletAddress ? 'yes' : 'no'}`,
+      walletAddress ? `Wallet: ${walletAddress}` : '',
+      `Chain ID: ${chainId ?? 1}`,
+      `Parsed intent: ${JSON.stringify(intent)}`,
+      simulation ? `Simulation: ${JSON.stringify(simulation)}` : '',
+    ].filter(Boolean).join('\n');
+
+    let content = fallbackExplanation;
+    try {
+      const messages = [
+        { role: 'system' as const, content: SIXA_SYSTEM_PROMPT },
+        ...history
+          .filter((m: { role: string }) => m.role === 'user' || m.role === 'assistant')
+          .slice(-6)
+          .map((m: { role: string; content: string }) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+        { role: 'user' as const, content: `USER REQUEST: ${message}\n\nCONTEXT:\n${contextLines}\n\nExplain the plan and confirm readiness.` },
+      ];
+
+      const response = await chat(messages, { temperature: 0.4, maxTokens: 600 });
+      if (response.content && response.content.trim().length > 10) {
+        content = response.content.trim();
+      }
+    } catch (error) {
+      console.error('LLM fallback used:', error instanceof Error ? error.message : 'unknown');
+    }
+
+    const needsClarification = isExecutable(intent) && (
+      (intent.type === 'swap' && !intent.params?.toToken) ||
+      (intent.type === 'bridge' && !intent.params?.targetChain) ||
+      (intent.type === 'send' && !intent.params?.address)
+    );
+
+    if (needsClarification) {
+      return NextResponse.json({
+        content: buildClarification(intent),
+        intent,
+        executable: false,
+        simulation: null,
+      });
+    }
 
     return NextResponse.json({
-      content: response.content,
-      model: response.model,
-      usage: response.usage,
+      content,
+      intent,
+      executable: isExecutable(intent),
+      simulation,
     });
   } catch (error) {
     if (error instanceof LLMError) {
-      return NextResponse.json(
-        { error: error.message, code: error.code },
-        { status: error.statusCode }
-      );
+      return NextResponse.json({ error: error.message, code: error.code }, { status: error.statusCode });
     }
-
     console.error('Chat API error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

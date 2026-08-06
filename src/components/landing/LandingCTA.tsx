@@ -1,0 +1,55 @@
+'use client';
+
+import { motion } from 'framer-motion';
+import Link from 'next/link';
+import { ArrowUpRight } from 'lucide-react';
+
+export function LandingCTA() {
+  return (
+    <section id="available" className="relative py-24 md:py-36 border-t border-black/10">
+      <div className="mx-auto max-w-4xl px-6 text-center">
+        <motion.h2
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-80px' }}
+          transition={{ duration: 0.5 }}
+          className="text-5xl md:text-7xl font-bold tracking-tight leading-[1.02] mb-6"
+        >
+          Ask anything.
+          <br />
+          It executes.
+        </motion.h2>
+        <motion.p
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.45, delay: 0.1 }}
+          className="text-secondary max-w-xl mx-auto leading-relaxed mb-10"
+        >
+          Your intent, parsed. Your wallet, signing. KeeperHub, executing. The same
+          boundary on every action — simulated first, audited always.
+        </motion.p>
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.45, delay: 0.2 }}
+          className="flex flex-col sm:flex-row items-center justify-center gap-3"
+        >
+          <a
+            href="/app"
+            className="inline-flex items-center gap-2 rounded-full bg-foreground text-background px-7 py-3.5 text-sm font-medium hover:opacity-85 transition-opacity"
+          >
+            Launch the app <ArrowUpRight className="w-4 h-4" />
+          </a>
+          <Link
+            href="/#mechanism"
+            className="inline-flex items-center gap-2 rounded-full border border-black/15 px-7 py-3.5 text-sm font-medium hover:border-black/40 transition-colors"
+          >
+            Read the mechanism
+          </Link>
+        </motion.div>
+      </div>
+    </section>
+  );
+}

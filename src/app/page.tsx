@@ -1,79 +1,41 @@
 import { Metadata } from 'next';
 import { Navbar } from '@/components/Navbar';
-import { Hero } from '@/components/Hero';
-import { HowItWorks } from '@/components/HowItWorks';
-import { Features } from '@/components/Features';
-import { AIChatSection } from '@/components/AIChatSection';
-import { PortfolioDashboard } from '@/components/PortfolioDashboard';
-import { Testimonials } from '@/components/Testimonials';
-import { FAQ } from '@/components/FAQ';
 import { Footer } from '@/components/Footer';
-import { GlowBackground, GradientMesh, NoiseOverlay, GridPattern, FloatingOrbs } from '@/components/ui/GlowBackground';
-import { CursorGlow } from '@/components/ui/CursorGlow';
+import { LandingHero } from '@/components/landing/LandingHero';
+import { HowItWorks } from '@/components/landing/HowItWorks';
+import { CommandsShowcase } from '@/components/landing/CommandsShowcase';
+import { SecurityProofs } from '@/components/landing/SecurityProofs';
+import { ExecutionShowcase } from '@/components/landing/ExecutionShowcase';
+import { DeployStatus } from '@/components/landing/DeployStatus';
+import { ExecutionStack } from '@/components/landing/ExecutionStack';
+import { FAQ } from '@/components/landing/FAQ';
+import { LandingCTA } from '@/components/landing/LandingCTA';
 
 export const metadata: Metadata = {
-  title: 'Sixa — AI Yield Optimization Agent',
-  description: 'Autonomous AI agent that maximizes returns on your crypto assets using natural language. Analyze, optimize, and execute DeFi strategies with institutional-grade risk management.',
-  keywords: ['DeFi', 'yield optimization', 'AI', 'crypto', 'yield farming', 'portfolio management', 'Web3'],
-  authors: [{ name: 'Sixa' }],
-  creator: 'Sixa',
-  publisher: 'Sixa',
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      'max-video-preview': -1,
-      'max-image-preview': 'large',
-      'max-snippet': -1,
-    },
-  },
+  title: 'Sixa — AI On-Chain Execution Assistant',
+  description: 'Talk to the blockchain. Sixa is an AI agent that parses natural language, simulates transactions, and executes securely through KeeperHub.',
+  keywords: ['AI', 'web3', 'blockchain', 'KeeperHub', 'DeFi', 'crypto assistant', 'smart wallet'],
   openGraph: {
-    type: 'website',
-    locale: 'en_US',
-    url: 'https://sixa.xyz',
-    title: 'Sixa — AI Yield Optimization Agent',
-    description: 'Autonomous AI agent that maximizes returns on your crypto assets using natural language.',
-    siteName: 'Sixa',
+    title: 'Sixa — AI On-Chain Execution Assistant',
+    description: 'Talk to the blockchain. Simulate, execute, audit.',
   },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Sixa — AI Yield Optimization Agent',
-    description: 'Autonomous AI agent that maximizes returns on your crypto assets using natural language.',
-    creator: '@sixa',
-  },
-  icons: {
-    icon: '/favicon-32x32.svg',
-    shortcut: '/favicon-32x32.svg',
-    apple: '/apple-touch-icon.svg',
-  },
-  manifest: '/site.webmanifest',
 };
 
 export default function Home() {
   return (
     <div className="relative min-h-screen bg-background text-foreground overflow-x-hidden">
-      <CursorGlow size={500} opacity={0.12} />
-      
-      <div className="fixed inset-0 z-0 pointer-events-none" aria-hidden="true">
-        <GlowBackground intensity={1} animated />
-        <GradientMesh animate />
-        <NoiseOverlay opacity={0.02} />
-        <GridPattern size={80} opacity={0.015} />
-        <FloatingOrbs count={12} />
-      </div>
-
       <Navbar />
 
       <main className="relative z-10">
-        <Hero />
+        <LandingHero />
+        <CommandsShowcase />
         <HowItWorks />
-        <Features />
-        <AIChatSection />
-        <PortfolioDashboard />
-        <Testimonials />
+        <SecurityProofs />
+        <ExecutionShowcase />
+        <DeployStatus />
+        <ExecutionStack />
         <FAQ />
+        <LandingCTA />
       </main>
 
       <Footer />

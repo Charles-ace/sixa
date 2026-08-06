@@ -166,7 +166,7 @@ export async function testConnection(): Promise<{ success: boolean; model: strin
       model: response.model,
       latencyMs: Date.now() - start,
     };
-  } catch (error) {
+  } catch {
     return {
       success: false,
       model: DEFAULT_MODEL,

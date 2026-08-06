@@ -1,156 +1,111 @@
 'use client';
 
 import Link from 'next/link';
-import { motion } from 'framer-motion';
-import {
-  Sparkles,
-  Twitter,
-  Github,
-  MessageSquare,
-  Mail,
-  ArrowRight,
-} from 'lucide-react';
-import { GlassPanel } from '@/components/ui/GlassPanel';
-import { cn } from '@/lib/utils';
+import { Github, MessageSquare, Mail } from 'lucide-react';
 
-const footerLinks = {
+const footerLinks: Record<string, { label: string; href: string; external?: boolean }[]> = {
   product: [
-    { label: 'Features', href: '#features' },
-    { label: 'How It Works', href: '#how-it-works' },
-    { label: 'Dashboard', href: '#dashboard' },
-    { label: 'Pricing', href: '#pricing' },
-    { label: 'API Docs', href: '/docs' },
+    { label: 'Open App', href: '/app' },
+    { label: 'Commands', href: '/#commands' },
+    { label: 'How It Works', href: '/#how-it-works' },
+    { label: 'Execution', href: '/#execution' },
   ],
-  resources: [
-    { label: 'Blog', href: '/blog' },
-    { label: 'Security', href: '/security' },
-    { label: 'Audits', href: '/audits' },
-    { label: 'Bug Bounty', href: '/bug-bounty' },
-    { label: 'Status', href: '/status' },
+  platform: [
+    { label: 'Security', href: '/#mechanism' },
+    { label: 'Status', href: '/#status' },
+    { label: 'Stack', href: '/#stack' },
+    { label: 'FAQ', href: '/#faq' },
   ],
-  company: [
-    { label: 'About', href: '/about' },
-    { label: 'Careers', href: '/careers' },
-    { label: 'Press', href: '/press' },
-    { label: 'Contact', href: '/contact' },
-    { label: 'Partners', href: '/partners' },
-  ],
-  legal: [
-    { label: 'Privacy', href: '/privacy' },
-    { label: 'Terms', href: '/terms' },
-    { label: 'Cookie Policy', href: '/cookies' },
-    { label: 'Disclaimer', href: '/disclaimer' },
+  connect: [
+    { label: 'GitHub', href: 'https://github.com/Charles-ace/sixa', external: true },
+    { label: 'Discord', href: 'https://discord.gg/sixa', external: true },
+    { label: 'Twitter', href: 'https://twitter.com/sixa', external: true },
+    { label: 'Email', href: 'mailto:hello@sixa.xyz', external: true },
   ],
 };
 
-const socialLinks = [
-  { icon: Twitter, href: 'https://twitter.com/sixa', label: 'Twitter' },
-  { icon: Github, href: 'https://github.com/sixa', label: 'GitHub' },
-  { icon: MessageSquare, href: 'https://discord.gg/sixa', label: 'Discord' },
-  { icon: Mail, href: 'mailto:hello@sixa.xyz', label: 'Email' },
-];
-
 export function Footer() {
   return (
-    <footer className="relative border-t border-border bg-background" aria-labelledby="footer-title">
-      <div className="absolute inset-0 z-0" aria-hidden="true">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] rounded-full bg-gradient-to-b from-indigo-500/5 to-transparent blur-3xl" />
-      </div>
-
-      <div className="relative z-10 mx-auto max-w-7xl px-6 py-16 lg:py-24">
-        <div className="grid lg:grid-cols-6 gap-8 lg:gap-12 mb-16">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="lg:col-span-2 space-y-6"
-          >
-            <Link href="/" className="flex items-center gap-2" aria-label="Sixa Home">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center">
-                <Sparkles className="w-6 h-6 text-white" />
+    <footer className="border-t border-black/10 bg-background" aria-labelledby="footer-title">
+      <div className="mx-auto max-w-6xl px-6 py-14">
+        <div className="grid lg:grid-cols-6 gap-10 mb-12">
+          <div className="lg:col-span-2 space-y-4">
+            <Link href="/" className="flex items-center gap-2.5" aria-label="Sixa Home">
+              <div className="w-7 h-7 rounded-md bg-foreground text-background flex items-center justify-center">
+                <span className="text-[13px] font-bold leading-none">S</span>
               </div>
-              <span className="font-bold text-xl tracking-tight">Sixa</span>
+              <span className="font-semibold text-[15px] tracking-tight">Sixa</span>
             </Link>
-            <p className="text-secondary text-sm leading-relaxed max-w-xs">
-              Autonomous AI yield optimization agent. Maximize returns on your crypto assets using natural language.
+            <p className="text-sm text-secondary leading-relaxed max-w-xs">
+              AI on-chain execution assistant. Non-custodial by design —
+              intent, simulation, KeeperHub relay, audit.
             </p>
-            <div className="flex items-center gap-4">
-              {socialLinks.map((social) => (
-                <motion.a
-                  key={social.label}
-                  href={social.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={social.label}
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  className="w-10 h-10 rounded-xl bg-white/5 border border-border flex items-center justify-center text-secondary hover:text-foreground hover:border-border hover:bg-white/10 transition-all"
-                >
-                  <social.icon className="w-5 h-5" />
-                </motion.a>
-              ))}
+            <div className="flex items-center gap-3 pt-1">
+              <a
+                href="https://github.com/Charles-ace/sixa"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="GitHub"
+                className="w-8 h-8 rounded-md border border-black/10 flex items-center justify-center text-secondary hover:text-foreground hover:border-black/30 transition-all"
+              >
+                <Github className="w-4 h-4" />
+              </a>
+              <a
+                href="https://discord.gg/sixa"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Discord"
+                className="w-8 h-8 rounded-md border border-black/10 flex items-center justify-center text-secondary hover:text-foreground hover:border-black/30 transition-all"
+              >
+                <MessageSquare className="w-4 h-4" />
+              </a>
+              <a
+                href="mailto:hello@sixa.xyz"
+                aria-label="Email"
+                className="w-8 h-8 rounded-md border border-black/10 flex items-center justify-center text-secondary hover:text-foreground hover:border-black/30 transition-all"
+              >
+                <Mail className="w-4 h-4" />
+              </a>
             </div>
-          </motion.div>
+          </div>
 
-          {Object.entries(footerLinks).map(([category, links], categoryIndex) => (
-            <motion.nav
+          {Object.entries(footerLinks).map(([category, links]) => (
+            <nav
               key={category}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 + categoryIndex * 0.08 }}
               aria-label={category.charAt(0).toUpperCase() + category.slice(1)}
             >
-              <h3 className="font-semibold text-foreground mb-4">{category.charAt(0).toUpperCase() + category.slice(1)}</h3>
-              <ul className="space-y-3" role="list">
-                {links.map((link, linkIndex) => (
-                  <motion.li
-                    key={link.href}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.2 + linkIndex * 0.05 }}
-                  >
+              <h3 className="text-[11px] font-mono uppercase tracking-wider text-secondary mb-4">
+                {category}
+              </h3>
+              <ul className="space-y-2.5" role="list">
+                {links.map((link) => (
+                  <li key={link.label}>
                     <Link
                       href={link.href}
+                      {...(link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                       className="text-sm text-secondary hover:text-foreground transition-colors"
                     >
                       {link.label}
                     </Link>
-                  </motion.li>
+                  </li>
                 ))}
               </ul>
-            </motion.nav>
+            </nav>
           ))}
         </div>
 
-        <div className="pt-8 border-t border-border">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <motion.p
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              className="text-sm text-secondary"
-            >
+        <div className="pt-8 border-t border-black/10">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <p className="text-sm text-secondary">
               © {new Date().getFullYear()} Sixa. All rights reserved.
-            </motion.p>
-
-            <motion.div
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.2 }}
-              className="flex items-center gap-6 text-sm text-secondary"
-            >
-              <span>Built with</span>
+            </p>
+            <div className="flex items-center gap-5 text-xs font-mono text-secondary">
               <span className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                <span>for DeFi</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-success" />
+                keeperhub · live
               </span>
-              <span className="flex items-center gap-1.5">
-                <ArrowRight className="w-3.5 h-3.5 text-indigo-400" />
-                <span>v1.0.0</span>
-              </span>
-            </motion.div>
+              <span>non-custodial · simulated first · audit trail</span>
+            </div>
           </div>
         </div>
       </div>

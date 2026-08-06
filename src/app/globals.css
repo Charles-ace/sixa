@@ -1,18 +1,18 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-background: #070707;
-  --color-surface: #101010;
-  --color-border: rgba(255, 255, 255, 0.08);
-  --color-foreground: #FFFFFF;
-  --color-secondary: #A3A3A3;
-  --color-muted: #737373;
-  --color-accent-from: #6366F1;
-  --color-accent-via: #8B5CF6;
-  --color-accent-to: #A855F7;
-  --color-success: #10B981;
-  --color-warning: #F59E0B;
-  --color-error: #EF4444;
+  --color-background: #F7F6F3;
+  --color-surface: #FFFFFF;
+  --color-border: rgba(10, 10, 10, 0.12);
+  --color-foreground: #0A0A0A;
+  --color-secondary: #6B6A66;
+  --color-muted: #93928D;
+  --color-accent-from: #0A0A0A;
+  --color-accent-via: #333333;
+  --color-accent-to: #555555;
+  --color-success: #0E9F6E;
+  --color-warning: #B45309;
+  --color-error: #DC2626;
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -22,16 +22,14 @@
   --animate-scale-in: scale-in 0.4s ease-out forwards;
   --animate-glow-pulse: glow-pulse 3s ease-in-out infinite;
   --animate-float: float 6s ease-in-out infinite;
-  --animate-gradient-shift: gradient-shift 8s ease-in-out infinite;
-  --animate-particle-float: particle-float 20s linear infinite;
 }
 
 @layer base {
   :root {
-    --background: #070707;
-    --foreground: #FFFFFF;
-    --surface: #101010;
-    --border: rgba(255, 255, 255, 0.08);
+    --background: #F7F6F3;
+    --foreground: #0A0A0A;
+    --surface: #FFFFFF;
+    --border: rgba(10, 10, 10, 0.12);
   }
 
   * {
@@ -48,7 +46,7 @@
   }
 
   ::selection {
-    @apply bg-accent-from/30 text-foreground;
+    @apply bg-foreground text-background;
   }
 
   ::-webkit-scrollbar {
@@ -60,7 +58,7 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-white/10 rounded-full hover:bg-white/20 transition-colors;
+    @apply bg-black/15 rounded-full hover:bg-black/25 transition-colors;
   }
 }
 
@@ -70,52 +68,19 @@
   }
 
   .gradient-text {
-    @apply bg-gradient-to-r from-accent-from via-accent-via to-accent-to bg-clip-text text-transparent;
-  }
-
-  .gradient-border {
-    position: relative;
-    background: linear-gradient(var(--surface), var(--surface)) padding-box,
-      linear-gradient(135deg, var(--accent-from), var(--accent-via), var(--accent-to)) border-box;
-    border: 1px solid transparent;
+    @apply text-foreground;
   }
 
   .glass {
-    @apply bg-white/5 backdrop-blur-xl border border-white/10;
+    @apply bg-white/70 backdrop-blur-xl border border-black/10;
   }
 
   .glass-strong {
-    @apply bg-white/10 backdrop-blur-2xl border border-white/15;
+    @apply bg-white/90 backdrop-blur-2xl border border-black/15;
   }
 
-  .noise-overlay {
-    position: relative;
-  }
-
-  .noise-overlay::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    opacity: 0.03;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-    pointer-events: none;
-    z-index: 1;
-  }
-
-  .grid-pattern {
-    position: relative;
-  }
-
-  .grid-pattern::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-image:
-      linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-    background-size: 60px 60px;
-    pointer-events: none;
-    z-index: 0;
+  .code-block {
+    @apply bg-white border border-black/10 rounded-xl px-4 py-3.5 font-mono text-xs text-foreground;
   }
 
   .animate-delay-100 {
@@ -213,31 +178,5 @@
   }
   75% {
     transform: translateY(-5px) translateX(10px);
-  }
-}
-
-@keyframes gradient-shift {
-  0%, 100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-}
-
-@keyframes particle-float {
-  0% {
-    transform: translateY(100vh) translateX(0) rotate(0deg);
-    opacity: 0;
-  }
-  10% {
-    opacity: 1;
-  }
-  90% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(-100vh) translateX(100px) rotate(360deg);
-    opacity: 0;
   }
 }
