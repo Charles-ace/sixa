@@ -1,6 +1,7 @@
 import type { WorkflowDraft, WorkflowEdge, WorkflowNode, WorkflowTriggerType } from './types';
 import { buildTriggerNode, buildActionNode, buildWorkflowEdge, autoLayout, templateRef } from './builder';
 import { getWorkflowSchemas, getChainByNetwork } from './schemas';
+import { getLiveUsdPrice } from '@/lib/market';
 
 export interface AgentContext {
   walletAddress?: string;
@@ -141,7 +142,26 @@ function isConditionalIntent(text: string): boolean {
   return /(if|when)\s+([a-z0-9]+)\s+(drops?|falls?|rises?|goes|below|above|reaches?)/i.test(text);
 }
 
-function buildRuleDraft(text: string, ctx?: AgentContext): WorkflowDraft {
+async function resolveConditionSpec(text: string, token: string, network: string): Promise<{ percent?: number; baselineUsd?: number; thresholdUsd?: number }> {
+  const percentMatch = text.match(/(\d+(?:\.\d+)?)\s*%/);
+  const percent = percentMatch ? parseFloat(percentMatch[1]) : undefined;
+
+  const belowMatch = text.match(/below\s+([\d.,]+)\s*(usd|dollars?)?/i);
+  if (belowMatch) {
+    return { thresholdUsd: Number(belowMatch[1].replace(/,/g, '')) };
+  }
+
+  if (percent) {
+    const baseline = await getLiveUsdPrice(token, Number(network));
+    const drops = /(if|when)\s+\w+\s+(drops?|falls?)/i.test(text);
+    const threshold = drops ? baseline * (1 - percent / 100) : baseline * (1 + percent / 100);
+    return { percent, baselineUsd: baseline, thresholdUsd: threshold };
+  }
+
+  return {};
+}
+
+async function buildRuleDraft(text: string, ctx?: AgentContext): Promise<WorkflowDraft> {
   const trigger = parseTrigger(text);
   const triggerType = trigger.triggerType;
   const triggerConfig = trigger.config;
@@ -181,7 +201,6 @@ function buildRuleDraft(text: string, ctx?: AgentContext): WorkflowDraft {
     const priceMatch = lower.match(/(if|when)\s+(\w+)\s+(drops?|falls?|rises?|goes)\s+(\d+(?:\.\d+)?)\s*%/);
     const triggerToken = priceMatch?.[2] ? priceMatch[2].toUpperCase() : extractToken(text) ?? 'ETH';
     const percent = priceMatch ? parseFloat(priceMatch[4]) : extractPercent(text);
-    const belowMatch = lower.match(/below\s+([\d.,]+)\s*(usd|dollars?)?/);
     const monitorNodeLabel = triggerToken === 'ETH' ? 'Check Balance' : `Check ${triggerToken} Balance`;
     const isTokenMonitor = triggerToken !== 'ETH';
     const monitorConfig: Record<string, unknown> = {
@@ -196,25 +215,29 @@ function buildRuleDraft(text: string, ctx?: AgentContext): WorkflowDraft {
     if (!ctx?.walletAddress) missing.push('walletAddress');
 
     const balanceField = isTokenMonitor ? `${templateRef(step1.id, monitorNodeLabel, 'balance.balance')}` : templateRef(step1.id, monitorNodeLabel, 'balance');
-    let conditionExpr: string | undefined;
+    const spec = await resolveConditionSpec(text, triggerToken, network);
     let conditionLabel = 'Condition';
-    if (percent && priceMatch) {
-      const op = /drops?|falls?/i.test(priceMatch[3]) ? '<=' : '>=';
-      conditionExpr = `${balanceField} ${op} threshold`;
-      conditionLabel = `${triggerToken} moved ${op === '<=' ? 'below' : 'above'} threshold`;
-      missing.push('priceThresholdValue');
-    } else if (belowMatch) {
-      conditionExpr = `${balanceField} < ${belowMatch[1].replace(/,/g, '')}`;
-      conditionLabel = `Balance below ${belowMatch[1]}`;
+    const conditionConfig: Record<string, unknown> = { actionType: 'Condition', mode: 'price', token: triggerToken, chainId: Number(network) };
+    if (spec.thresholdUsd !== undefined) {
+      const drops = /(drops?|falls?|below)/i.test(lower);
+      const op = drops ? '<' : '>=';
+      conditionConfig.operator = op;
+      conditionConfig.thresholdUsd = spec.thresholdUsd;
+      if (spec.percent !== undefined) {
+        conditionConfig.percent = spec.percent;
+        conditionConfig.baselineUsd = spec.baselineUsd;
+      }
+      conditionLabel = drops
+        ? `${triggerToken} below $${spec.thresholdUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+        : `${triggerToken} at or above $${spec.thresholdUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
     } else if (percent) {
-      conditionExpr = `${balanceField} < threshold`;
       missing.push('referenceValue');
     } else {
-      conditionExpr = `${balanceField} exists`;
+      conditionConfig.mode = 'exists';
       conditionLabel = 'Balance present';
     }
 
-    const step2 = buildActionNode(nodeId(2), conditionLabel, { actionType: 'Condition', condition: conditionExpr }, 'Routes true/false branches', { x: 504, y: 0 });
+    const step2 = buildActionNode(nodeId(2), conditionLabel, conditionConfig, 'Routes true/false branches', { x: 504, y: 0 });
     nodes.push(step2);
     edges.push(buildWorkflowEdge(step1.id, step2.id));
 
@@ -260,7 +283,7 @@ function buildRuleDraft(text: string, ctx?: AgentContext): WorkflowDraft {
 
 export async function generateWorkflow(text: string, ctx?: AgentContext): Promise<WorkflowDraft> {
   const schemas = await getWorkflowSchemas().catch(() => null);
-  const draft = buildRuleDraft(text, ctx);
+  const draft = await buildRuleDraft(text, ctx);
 
   if (schemas) {
     const network = extractNetwork(text) ?? defaultNetwork();

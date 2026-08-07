@@ -9,9 +9,9 @@ const stack = [
   { layer: 'LLM', file: 'OpenRouter · llama 3.1', does: 'Conversational agent, explains intents and decisions', state: 'Live' },
   { layer: 'Agent', file: 'sixa/workflows/agent.ts', does: 'Builds monitoring/alert/rebalance strategies from natural language', state: 'Live' },
   { layer: 'Notifications', file: 'KeeperHub channels', does: 'Telegram + Discord alerts attached automatically to workflows', state: 'Live' },
-  { layer: 'Simulation', file: 'keeperhub/providers/', does: 'On-chain dry-run, revert checks, live gas estimate', state: 'In progress' },
+  { layer: 'Simulation', file: 'keeperhub/providers/', does: 'On-chain dry-run, revert checks, live gas estimate', state: 'Live' },
   { layer: 'Execution', file: 'keeperhub/providers/', does: 'REST relay, idempotent broadcast, receipt verification, audit log', state: 'Live' },
-  { layer: 'Autonomous Mode', file: 'sixa/decision-engine', does: 'Predefined strategies execute without approval', state: 'In progress' },
+  { layer: 'Autonomous Mode', file: 'sixa/workflows/decision-engine', does: 'Evaluates conditions on a cron and executes approved strategies unattended', state: 'Live' },
 ];
 
 const STATE_COLORS: Record<string, string> = {

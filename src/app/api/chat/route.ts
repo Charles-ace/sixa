@@ -46,16 +46,25 @@ async function handleWorkflowRoute(message: string, history: unknown[], walletAd
     return { content: 'Which workflow should I pause? Say "list workflows" to see them.', keeperHub: config };
   }
 
-  if (/(resume|enable|start)\s+(.*)/i.test(message)) {
+  if (/(resume|enable|start|approve|make autonomous|run autonomously)\s+(.*)/i.test(message)) {
     const provider = getWorkflowProvider();
     const match = message.toLowerCase();
     const workflows = await provider.listWorkflows();
     const target = workflows.find((w) => match.includes(w.name.toLowerCase()));
     if (target) {
-      await provider.setEnabled(target.id, true);
-      return { content: `Resumed workflow "${target.name}". Alerts are live again on Telegram and Discord.`, workflowState: { id: target.id, enabled: true }, keeperHub: config };
+      const autonomousNodes = (target.nodes ?? []).map((node) =>
+        node.type === 'trigger'
+          ? { ...node, data: { ...node.data, config: { ...node.data.config, autonomous: true } } }
+          : node
+      );
+      await provider.updateWorkflow(target.id, { enabled: true, nodes: autonomousNodes });
+      return {
+        content: `Resumed workflow "${target.name}" and armed it for autonomous mode. The decision engine now evaluates its conditions every few minutes and executes unattended when they are met. Pause it anytime with "pause ${target.name}".`,
+        workflowState: { id: target.id, enabled: true, autonomous: true },
+        keeperHub: config,
+      };
     }
-    return { content: 'Which workflow should I resume? Say "workflows" to see them.', keeperHub: config };
+    return { content: 'Which workflow should I run autonomously? Say "workflows" to see them.', keeperHub: config };
   }
 
   const draft = await generateWorkflow(message, { walletAddress });
