@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { Address } from 'viem';
+import type { ParsedIntent } from '@/lib/types';
 import { chat, LLMError } from '@/lib/llm';
 import { parseIntent, isExecutable } from '@/lib/intent-parser';
 import { SIXA_SYSTEM_PROMPT, buildIntentExplanation, buildClarification } from '@/lib/chat-explainer';
 import { simulateForChat, getConfigStatus } from '@/lib/keeperhub';
 import { generateWorkflow } from '@/lib/workflows/agent';
 import { getWorkflowProvider } from '@/lib/workflows/provider';
+import { getWalletPortfolio, getBalance, getRecentActivity, chainDisplayNames } from '@/lib/chain';
 
 const WORKFLOW_WORDS = /(workflow|automation|strategy|monitor|watch|track|alert|notify|rebalance|schedule|every (day|week|month|hour|minute)|when .* (drop|fall|rise|reach|below|above))/i;
 
@@ -12,6 +15,63 @@ const TELEGRAM_CONNECT_WORDS = /(connect|link|set up|setup|add|configure)\s+(my\
 
 function isTelegramConnectRequest(message: string): boolean {
   return TELEGRAM_CONNECT_WORDS.test(message);
+}
+
+function formatUsd(value: number): string {
+  return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function formatToken(value: number): string {
+  return value.toLocaleString(undefined, { maximumFractionDigits: 6 });
+}
+
+async function handleReadIntent(intent: ParsedIntent, walletAddress: string, chainId: number) {
+  const address = walletAddress as Address;
+  const chainName = chainDisplayNames[chainId] ?? `chain ${chainId}`;
+
+  if (intent.type === 'portfolio') {
+    const portfolio = await getWalletPortfolio(address, chainId);
+    const lines: string[] = [
+      `Here is your portfolio on ${portfolio.chainName} (${portfolio.address.slice(0, 6)}…${portfolio.address.slice(-4)}):`,
+      '',
+      `• Total value: ${formatUsd(portfolio.totalUsd)}`,
+      `• ${portfolio.nativeSymbol}: ${formatToken(portfolio.nativeBalance)} ≈ ${formatUsd(portfolio.nativeUsdValue)}`,
+      ...portfolio.tokens.map((t) => `• ${t.symbol}: ${formatToken(t.balance)} ≈ ${formatUsd(t.usdValue)}`),
+    ];
+    if (portfolio.tokens.length === 0) {
+      lines.push('• No additional token balances found on this network.');
+    }
+    return { content: lines.join('\n'), intent, executable: false, portfolio };
+  }
+
+  if (intent.type === 'balance') {
+    const token = intent.params?.toToken;
+    const balances = await getBalance(address, chainId, token);
+    const lines: string[] = [
+      `Balances on ${chainName}:`,
+      '',
+      ...balances.map((b) => `• ${b.symbol}: ${formatToken(b.balance)} ≈ ${formatUsd(b.usdValue)}`),
+    ];
+    if (balances.length === 0) {
+      lines.push('No balances found on this network.');
+    }
+    return { content: lines.join('\n'), intent, executable: false, balances };
+  }
+
+  const recent = await getRecentActivity(address, chainId);
+  return {
+    content: [
+      `Recent activity for ${address.slice(0, 6)}…${address.slice(-4)} on ${chainName}:`,
+      '',
+      `• Latest block observed: #${recent.latestBlock.toLocaleString()}`,
+      `• Fetched at: ${new Date(recent.fetchedAt).toLocaleString()}`,
+      '',
+      'I can pull balances and portfolio overview in detail. Ask "show my portfolio" or "how much ETH do I have?"',
+    ].join('\n'),
+    intent,
+    executable: false,
+    activity: recent,
+  };
 }
 
 function isWorkflowRequest(message: string): boolean {
@@ -83,8 +143,7 @@ async function handleWorkflowRoute(message: string, history: unknown[], walletAd
   };
 }
 
-async function handleDeploy(message: string, history: unknown[]) {
-  const prior = (Array.isArray(history) ? history : [])
+async function handleDeploy(message: string, history: unknown[]) {  const prior = (Array.isArray(history) ? history : [])
     .filter((m): m is Record<string, unknown> => Boolean(m) && typeof m === 'object')
     .filter((m) => m.role === 'user')
     .slice(-4)
@@ -163,6 +222,28 @@ export async function POST(request: NextRequest) {
         executable: false,
         simulation: null,
       });
+    }
+
+    if ((intent.type === 'portfolio' || intent.type === 'balance' || intent.type === 'history')) {
+      if (!walletAddress) {
+        return NextResponse.json({
+          content: buildIntentExplanation(intent, undefined, false),
+          intent,
+          executable: false,
+          simulation: null,
+        });
+      }
+      try {
+        const result = await handleReadIntent(intent, walletAddress, Number(chainId ?? 1));
+        return NextResponse.json({ ...result, executable: false, simulation: null });
+      } catch (error) {
+        return NextResponse.json({
+          content: `I couldn't pull ${intent.type} data from the chain right now. Connect a wallet or try again — ${error instanceof Error ? error.message : 'unknown error'}`,
+          intent,
+          executable: false,
+          simulation: null,
+        });
+      }
     }
 
     const config = getConfigStatus();

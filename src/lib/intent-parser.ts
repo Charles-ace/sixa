@@ -51,6 +51,23 @@ function extractToken(text: string, amount: number | undefined): string | undefi
   return match ? normalizeToken(match[1]) : undefined;
 }
 
+const FILLER_WORDS = new Set([
+  'how', 'much', 'do', 'i', 'have', 'what', 'my', 'the', 'is', 'my', 'in', 'on', 'of', 'would',
+  'does', 'doe', 'show', 'for', 'about', 'me', 'please', 'and', 'a', 'an', 'balance', 'balances',
+]);
+
+function extractBalanceToken(text: string): string | undefined {
+  const tokenMatch = text.match(/\b(ETH|WETH|USDC|USDT|DAI|WBTC|stETH|POL|AVAX)\b/i);
+  if (tokenMatch) return normalizeToken(tokenMatch[1]);
+  const words = text.replace(/[?.,!]/g, '').split(/\s+/).filter((w) => w.trim().length > 0);
+  for (const word of words) {
+    if (FILLER_WORDS.has(word.toLowerCase())) continue;
+    const normalized = normalizeToken(word);
+    if (normalized) return normalized;
+  }
+  return undefined;
+}
+
 function isBalanceQuestion(text: string): boolean {
   return /(how much|what.*(?:hold|own|have)|balance of|balance for|check.*balance|show.*balance)/i.test(text);
 }
@@ -152,7 +169,7 @@ export function parseIntent(text: string): ParsedIntent {
     return { type: 'portfolio', confidence: 0.95, raw: text, reasoning: ['Building portfolio overview from on-chain balances.'] };
   }
   if (isBalanceQuestion(clean)) {
-    const token = extractToken(text, undefined);
+    const token = extractBalanceToken(text);
     return { type: 'balance', confidence: 0.9, raw: text, params: { toToken: token }, reasoning: ['Checking wallet balance from chain data.'] };
   }
 
