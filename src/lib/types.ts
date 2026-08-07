@@ -101,6 +101,15 @@ export interface ChatMessage {
   intent?: ParsedIntent;
   timestamp: string;
   status?: 'thinking' | 'complete' | 'error';
+  telegramConnect?: boolean;
+  telegramDisconnect?: boolean;
+  telegram?: {
+    ok: boolean;
+    error?: string;
+    connectable?: boolean;
+    botName?: string;
+    username?: string;
+  };
 }
 
 export const SUPPORTED_NETWORKS = [

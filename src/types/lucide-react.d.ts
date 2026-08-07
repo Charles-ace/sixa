@@ -53,6 +53,7 @@ declare module 'lucide-react' {
   export const Target: LucideIcon;
   export const TrendingUp: LucideIcon;
   export const Twitter: LucideIcon;
+  export const Unlink: LucideIcon;
   export const User: LucideIcon;
   export const Wallet: LucideIcon;
   export const Wrench: LucideIcon;

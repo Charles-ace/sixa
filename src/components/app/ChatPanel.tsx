@@ -7,6 +7,7 @@ import type { AuditEntry, ChatMessage, ExecutionResult, ExecutionStage, ParsedIn
 import { ACTION_LABELS } from '@/lib/intent-parser';
 import { TransactionPreview } from '@/components/app/TransactionPreview';
 import { ExecutionTimeline } from '@/components/app/ExecutionTimeline';
+import { TelegramConnectCard } from '@/components/app/TelegramConnectCard';
 import { cn } from '@/lib/utils';
 
 interface ChatPanelProps {
@@ -45,6 +46,14 @@ export function ChatPanel({ walletAddress, chainId = 1, walletConnected, onAudit
     environment?: string;
     chainName?: string;
   }>({ mode: 'simulated', configured: false, protectedExecution: false });
+  const [telegramStatus, setTelegramStatus] = useState<{
+    connected: boolean;
+    botName?: string;
+    username?: string;
+    chatId?: string;
+    error?: string;
+  } | null>(null);
+  const [telegramCard, setTelegramCard] = useState<{ mode: 'connect' | 'disconnect'; messageId: string } | null>(null);
   const [runId, setRunId] = useState(0);
 
   const endRef = useRef<HTMLDivElement>(null);
@@ -68,6 +77,23 @@ export function ChatPanel({ walletAddress, chainId = 1, walletConnected, onAudit
       )
       .catch(() => setKeeperConfig({ mode: 'simulated', configured: false, protectedExecution: false }));
   }, []);
+
+  const refreshTelegramStatus = useCallback(() => {
+    fetch('/api/telegram/status')
+      .then((r) => r.json())
+      .then((data) => setTelegramStatus({
+        connected: Boolean(data.connected),
+        botName: data.botName,
+        username: data.username,
+        chatId: data.chatId,
+        error: data.error,
+      }))
+      .catch(() => setTelegramStatus({ connected: false }));
+  }, []);
+
+  useEffect(() => {
+    refreshTelegramStatus();
+  }, [refreshTelegramStatus]);
 
   const appendMessage = useCallback((message: ChatMessage) => {
     setMessages((prev) => [...prev, message]);
@@ -110,9 +136,23 @@ export function ChatPanel({ walletAddress, chainId = 1, walletConnected, onAudit
         content: data.content,
         intent: data.intent,
         timestamp: new Date().toISOString(),
+        telegram: data.telegram,
       };
 
+      if (data.telegramConnect) {
+        assistantMessage.telegramConnect = true;
+      }
+      if (data.telegramDisconnect) {
+        assistantMessage.telegramDisconnect = true;
+      }
+
       appendMessage(assistantMessage);
+
+      if (data.telegramConnect) {
+        setTelegramCard({ mode: 'connect', messageId: assistantMessage.id });
+      } else if (data.telegramDisconnect) {
+        setTelegramCard({ mode: 'disconnect', messageId: assistantMessage.id });
+      }
 
       if (data.executable && data.intent && data.simulation) {
         setPreview({ messageId: assistantMessage.id, intent: data.intent, simulation: data.simulation });
@@ -238,6 +278,18 @@ export function ChatPanel({ walletAddress, chainId = 1, walletConnected, onAudit
     }
   }, [preview, walletAddress, isExecuting, onAuditEntry, appendMessage]);
 
+  const handleTelegramCardDone = useCallback((result: { ok: boolean; message: string }) => {
+    setTelegramCard(null);
+    refreshTelegramStatus();
+    appendMessage({
+      id: crypto.randomUUID(),
+      role: 'assistant',
+      content: result.message,
+      timestamp: new Date().toISOString(),
+      status: result.ok ? 'complete' : 'error',
+    });
+  }, [appendMessage, refreshTelegramStatus]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -293,6 +345,24 @@ export function ChatPanel({ walletAddress, chainId = 1, walletConnected, onAudit
           <span
             className={cn(
               'px-2.5 py-1 rounded-full border font-medium',
+              telegramStatus?.connected
+                ? 'bg-success/10 text-success border-success/25'
+                : 'bg-black/5 text-foreground border-black/15'
+            )}
+            title={telegramStatus?.connected ? 'Telegram alerts active' : 'Telegram not connected'}
+            onClick={() => {
+              if (telegramStatus?.connected) {
+                setTelegramCard({ mode: 'disconnect', messageId: '' });
+              }
+            }}
+          >
+            {telegramStatus?.connected
+              ? `Telegram${telegramStatus.username ? ` @${telegramStatus.username}` : ''}`
+              : 'Telegram off'}
+          </span>
+          <span
+            className={cn(
+              'px-2.5 py-1 rounded-full border font-medium',
               keeperConfig.mode === 'live' || keeperConfig.mode === 'testnet'
                 ? 'bg-success/10 text-success border-success/25'
                 : keeperConfig.mode === 'simulated'
@@ -342,35 +412,46 @@ export function ChatPanel({ walletAddress, chainId = 1, walletConnected, onAudit
           </motion.div>
         )}
 
-        <AnimatePresence initial={false}>
+<AnimatePresence initial={false}>
           {messages.map((message) => (
-            <motion.div
-              key={message.id}
-              initial={{ opacity: 0, y: 16, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
-              className={cn('flex gap-3', message.role === 'user' && 'flex-row-reverse')}
-            >
-              <div className={cn(
-                'flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center',
-                message.role === 'user'
-                  ? 'bg-foreground'
-                  : 'bg-black/[0.05] border border-border'
-              )}>
-                {message.role === 'user' ? <User className="w-4 h-4 text-background" /> : <Bot className="w-4 h-4 text-foreground" />}
-              </div>
-              <div className={cn(
-                'max-w-[85%] rounded-2xl px-4 py-3',
-                message.role === 'user'
-                  ? 'bg-black/5 border border-black/10'
-                  : 'bg-black/[0.04] border border-border'
-              )}>
-                {renderAssistantContent(message)}
-                <p className="text-[10px] text-secondary/50 mt-2">
-                  {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </p>
-              </div>
-            </motion.div>
+            <div key={message.id}>
+              <motion.div
+                initial={{ opacity: 0, y: 16, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+                className={cn('flex gap-3', message.role === 'user' && 'flex-row-reverse')}
+              >
+                <div className={cn(
+                  'flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center',
+                  message.role === 'user'
+                    ? 'bg-foreground'
+                    : 'bg-black/[0.05] border border-border'
+                )}>
+                  {message.role === 'user' ? <User className="w-4 h-4 text-background" /> : <Bot className="w-4 h-4 text-foreground" />}
+                </div>
+                <div className={cn(
+                  'max-w-[85%] rounded-2xl px-4 py-3',
+                  message.role === 'user'
+                    ? 'bg-black/5 border border-black/10'
+                    : 'bg-black/[0.04] border border-border'
+                )}>
+                  {renderAssistantContent(message)}
+                  <p className="text-[10px] text-secondary/50 mt-2">
+                    {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+              </motion.div>
+              {telegramCard && telegramCard.messageId === message.id && (
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="pl-11 mt-1"
+                >
+                  <TelegramConnectCard mode={telegramCard.mode} onDone={handleTelegramCardDone} />
+                </motion.div>
+              )}
+            </div>
           ))}
         </AnimatePresence>
 

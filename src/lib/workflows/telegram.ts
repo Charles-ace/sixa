@@ -1,3 +1,5 @@
+import { getStoredTelegramConfig } from './telegram-store';
+
 export interface TelegramConfig {
   botToken?: string;
   chatId?: string;
@@ -12,6 +14,19 @@ export function readTelegramConfig(): TelegramConfig {
 
 export function isTelegramConfigured(config: TelegramConfig = readTelegramConfig()): boolean {
   return Boolean(config.botToken && config.chatId);
+}
+
+export async function loadEffectiveTelegramConfig(): Promise<TelegramConfig> {
+  const envCfg = readTelegramConfig();
+  if (envCfg.botToken && envCfg.chatId) return envCfg;
+  const stored = await getStoredTelegramConfig();
+  if (stored.botToken && stored.chatId) return stored;
+  return {};
+}
+
+export function maskChatId(chatId: string): string {
+  if (chatId.length <= 4) return '*'.repeat(chatId.length);
+  return `${chatId.slice(0, 2)}…${chatId.slice(-2)}`;
 }
 
 export interface TelegramSendResult {
