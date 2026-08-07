@@ -10,24 +10,28 @@ const statuses = [
     dot: 'bg-success',
     items: [
       'Wallet connect — MetaMask & EVM',
-      'LLM intent parsing — OpenRouter',
+      'LLM conversation — OpenRouter',
+      'Agent workflow builder — natural language',
+      'KeeperHub execution — REST · real on-chain relay',
+      'Telegram + Discord alerts — wired by the agent',
       'Simulation engine — revert-checked',
       'Audit trail — searchable',
     ],
   },
   {
-    label: 'Demo mode',
+    label: 'In progress',
     accent: 'text-foreground border-black/20 bg-black/5',
     dot: 'bg-foreground/70',
     items: [
-      'KeeperHub execution — local relay',
-      'Gas estimation — smart & MEV-aware',
-      'Private routing — no public mempool',
+      'Autonomous mode — approve once, run unattended',
+      'Private routing — MEV-aware, RPC pool',
+      'Gas estimation — smart & live',
+      'Portfolio dashboard — multi-network balances',
       'Cross-chain bridge routing',
     ],
   },
   {
-    label: 'Not built',
+    label: 'Not live',
     accent: 'text-muted border-black/10 bg-black/[0.02]',
     dot: 'bg-black/20',
     items: [
@@ -60,8 +64,8 @@ export function DeployStatus() {
           transition={{ duration: 0.4, delay: 0.1 }}
           className="text-secondary max-w-2xl leading-relaxed mb-12"
         >
-          The assistant runs in your browser today. Execution falls back to a local
-          simulation relay until a KeeperHub endpoint is configured.
+          The assistant runs in your browser today. On-chain execution and alerts
+          flow through KeeperHub in the background — no manual wiring needed.
         </motion.p>
 
         <div className="grid md:grid-cols-3 gap-px bg-black/10 border border-black/10 rounded-2xl overflow-hidden">

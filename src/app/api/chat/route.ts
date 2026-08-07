@@ -5,39 +5,13 @@ import { SIXA_SYSTEM_PROMPT, buildIntentExplanation, buildClarification } from '
 import { simulateForChat, getConfigStatus } from '@/lib/keeperhub';
 import { generateWorkflow } from '@/lib/workflows/agent';
 import { getWorkflowProvider } from '@/lib/workflows/provider';
-import { loadEffectiveTelegramConfig, verifyTelegramConnection, maskChatId } from '@/lib/workflows/telegram';
 
 const WORKFLOW_WORDS = /(workflow|automation|strategy|monitor|watch|track|alert|notify|rebalance|schedule|every (day|week|month|hour|minute)|when .* (drop|fall|rise|reach|below|above))/i;
 
-const TELEGRAM_CONNECT_WORDS = /(connect|link|set up|setup|add|configure)\s+(my\s+)?(telegram|bot|sixa\s*bot)|telegram\s+(connection|notifications?|alerts?|link)/i;
+const TELEGRAM_CONNECT_WORDS = /(connect|link|set up|setup|add|configure)\s+(my\s+)?(telegram|discord|bot)\b/i;
 
 function isTelegramConnectRequest(message: string): boolean {
   return TELEGRAM_CONNECT_WORDS.test(message);
-}
-
-function isTelegramStatusRequest(message: string): boolean {
-  return /(is|check|show|what'?s|verify)\s+(my\s+)?(telegram|bot)\s+(connected|status|working)|telegram\s+(connected|working|status)/i.test(message) && !isTelegramConnectRequest(message);
-}
-
-async function handleTelegramStatus() {
-  const config = await loadEffectiveTelegramConfig();
-  if (!config.botToken || !config.chatId) {
-    return {
-      content: 'Telegram is not connected yet.\n\nSay "connect my Telegram" and I will walk you through linking a bot in about 60 seconds.',
-      telegram: { ok: false, error: 'Telegram not configured.', connectable: true },
-    };
-  }
-  const check = await verifyTelegramConnection(config);
-  if (!check.ok) {
-    return {
-      content: `Your Telegram bot is configured but the connection check failed:\n\n• ${check.error}\n\nSay "connect my Telegram" to re-link it.`,
-      telegram: { ok: false, error: check.error, connectable: true },
-    };
-  }
-  return {
-    content: `Telegram is connected and verified.\n\n• Bot: @${check.username ?? 'unknown'}\n• Chat: ${maskChatId(config.chatId)}\n\nSay "disconnect telegram" to unlink it.`,
-    telegram: { ok: true, botName: check.botName, username: check.username, connectable: true },
-  };
 }
 
 function isWorkflowRequest(message: string): boolean {
@@ -67,7 +41,7 @@ async function handleWorkflowRoute(message: string, history: unknown[], walletAd
     const target = workflows.find((w) => match.includes(w.name.toLowerCase().split(' ')[0]) || match.includes(w.name.toLowerCase()));
     if (target) {
       await provider.setEnabled(target.id, false);
-      return { content: `Paused workflow "${target.name}".`, workflowState: { id: target.id, enabled: false }, keeperHub: config };
+      return { content: `Paused workflow "${target.name}". Alerts are now silenced on Telegram and Discord.`, workflowState: { id: target.id, enabled: false }, keeperHub: config };
     }
     return { content: 'Which workflow should I pause? Say "list workflows" to see them.', keeperHub: config };
   }
@@ -79,24 +53,23 @@ async function handleWorkflowRoute(message: string, history: unknown[], walletAd
     const target = workflows.find((w) => match.includes(w.name.toLowerCase()));
     if (target) {
       await provider.setEnabled(target.id, true);
-      return { content: `Resumed workflow "${target.name}".`, workflowState: { id: target.id, enabled: true }, keeperHub: config };
+      return { content: `Resumed workflow "${target.name}". Alerts are live again on Telegram and Discord.`, workflowState: { id: target.id, enabled: true }, keeperHub: config };
     }
-    return { content: 'Which workflow should you resume? Say "workflows" to see them.', keeperHub: config };
+    return { content: 'Which workflow should I resume? Say "workflows" to see them.', keeperHub: config };
   }
 
   const draft = await generateWorkflow(message, { walletAddress });
-  const telegramConfig = await loadEffectiveTelegramConfig();
-  const telegram = telegramConfig.botToken && telegramConfig.chatId
-    ? await verifyTelegramConnection(telegramConfig).catch(() => ({ ok: false, error: 'Telegram check failed' }))
-    : { ok: false, error: 'Telegram not connected — say "connect my Telegram" and I will link your bot.', connectable: true };
 
   const missing = draft.missingFields.length > 0 ? `\n\nI still need: ${draft.missingFields.join(', ')}` : '';
-  const telegramNote = telegram.ok ? '' : `\n\n⚠ ${telegram.error ?? 'telegram not configured'}`;
+  const notifyActions = (draft.summary.actions ?? []).filter((a) =>
+    String(a.actionType).startsWith('telegram') || String(a.actionType).startsWith('discord')
+  );
+  const notifyChannels = [...new Set(notifyActions.map((a) => (String(a.actionType).startsWith('discord') ? 'Discord' : 'Telegram')))];
+  const notifyLine = notifyChannels.length > 0 ? `\n\nAlerts are wired through KeeperHub to your ${notifyChannels.join(' and ')} — nothing to set up manually.` : '';
 
   return {
-    content: `I built this workflow for you:\n\n• ${draft.description}${missing}${telegramNote}\n\nSay "deploy it" to create it on KeeperHub, or "workflows" to see all of them.`,
+    content: `I built this workflow for you:\n\n• ${draft.description}${missing}\n\nSay "deploy it" to create it on KeeperHub, or "workflows" to see all of them.${notifyLine}`,
     workflow: draft,
-    telegram,
     keeperHub: config,
   };
 }
@@ -135,35 +108,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 });
     }
 
-    if (/disconnect\s+(my\s+)?(telegram|bot)|unlink\s+(my\s+)?(telegram|bot)/i.test(message)) {
+    if (/disconnect\s+(my\s+)?(telegram|discord|bot)|unlink\s+(my\s+)?(telegram|discord|bot)/i.test(message)) {
       return NextResponse.json({
-        content: 'To disconnect Telegram, tap the card below — I will drop the link so no future alerts are sent.',
-        telegramDisconnect: true,
+        content: 'Alerts are delivered through KeeperHub to your connected Telegram and Discord channels — they can be paused per-workflow by saying "pause <workflow>" in chat, or managed in your KeeperHub workspace.',
         workflowIntent: false,
         executable: false,
       });
     }
 
-    if (isTelegramConnectRequest(message) || /telegram\s*(setup|connection)/i.test(message)) {
+    if (isTelegramConnectRequest(message) || /(telegram|discord)\s*(setup|connection|notification|alert)/i.test(message)) {
       return NextResponse.json({
         content: [
-          'Here is how to link Telegram in ~60 seconds:',
+          'No manual setup needed — notifications are wired up automatically through KeeperHub.',
           '',
-          '1. Create a bot: message @BotFather, run /newbot, and copy the token.',
-          '2. Send your bot any message (so it knows where to reach you).',
-          '3. Paste both the token and the chat id into the card below.',
+          'When you create a monitoring or alert workflow ("watch my portfolio and notify me on Telegram if it drops 20%"), I attach the Telegram and Discord delivery steps in the background.',
           '',
-          'Your bot token is shown to you and stored by Sixa as a secret. It is never shared in chat or committed to code.',
+          'You manage the channels and recipients once in your KeeperHub workspace, and every workflow inherits them.',
         ].join('\n'),
-        telegramConnect: true,
         workflowIntent: false,
         executable: false,
       });
-    }
-
-    if (isTelegramStatusRequest(message)) {
-      const result = await handleTelegramStatus();
-      return NextResponse.json({ ...result, workflowIntent: false, executable: false });
     }
 
     if (isWorkflowRequest(message) || /deploy (it|this|the)/i.test(message)) {

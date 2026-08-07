@@ -7,6 +7,7 @@ export type WorkflowActionType =
   | 'web3/read-contract'
   | 'web3/write-contract'
   | 'telegram/send-message'
+  | 'discord/send-message'
   | 'Condition'
   | 'HTTP Request';
 

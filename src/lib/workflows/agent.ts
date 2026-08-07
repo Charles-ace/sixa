@@ -104,12 +104,15 @@ function defaultNetwork(): string {
   return String(process.env.KEEPERHUB_CHAIN_ID ?? '8453');
 }
 
-function buildNotifyNode(chatId: string, message: string, index: number): WorkflowNode {
+function buildNotifyNode(chatId: string, message: string, index: number, channel: 'telegram' | 'discord' = 'telegram'): WorkflowNode {
+  const actionType = channel === 'discord' ? 'discord/send-message' : 'telegram/send-message';
   return buildActionNode(
     nodeId(index),
-    'Notify Telegram',
-    { actionType: 'telegram/send-message', chatId, message },
-    'Sends a Telegram message through the connected Telegram bot',
+    channel === 'discord' ? 'Notify Discord' : 'Notify Telegram',
+    { actionType, chatId, message, channel },
+    channel === 'discord'
+      ? 'Sends a Discord message through the KeeperHub-connected Discord bot'
+      : 'Sends a Telegram message through the KeeperHub-connected Telegram bot',
     { x: 0, y: 0 }
   );
 }
@@ -216,13 +219,20 @@ function buildRuleDraft(text: string, ctx?: AgentContext): WorkflowDraft {
     edges.push(buildWorkflowEdge(step1.id, step2.id));
 
     const msg = `Alert: ${triggerToken} condition met. Balance: ${balanceField}`;
-    const chatId = ctx?.chatId ?? String(process.env.TELEGRAM_CHAT_ID ?? 'your_chat_id');
-    const step3 = buildNotifyNode(chatId, msg, 3);
-    nodes.push(step3);
-    edges.push(buildWorkflowEdge(step2.id, step3.id, { sourceHandle: 'true' }));
-    if (!chatId || chatId === 'your_chat_id') missing.push('telegramChatId');
+    const wantsDiscord = /(discord|dc)/i.test(lower);
+    const wantsTelegram = /(telegram|tg|notify|alert)/i.test(lower);
+    const channels: Array<'telegram' | 'discord'> = [];
+    if (wantsDiscord) channels.push('discord');
+    if (wantsTelegram || channels.length === 0) channels.push('telegram');
+
+    channels.forEach((channel, i) => {
+      const step = buildNotifyNode('', msg, 3 + i, channel);
+      nodes.push(step);
+      edges.push(buildWorkflowEdge(step2.id, step.id, { sourceHandle: 'true' }));
+    });
 
     description = `Monitors ${triggerToken} on chain ${network}${percent ? `, alerts when it moves ${percent}%` : ''}`;
+    if (channels.length > 0) description += `, notifying via ${channels.join(' and ')}`;
     if (triggerType === 'Schedule') description += ` (check ${describeTrigger(String(triggerConfig.scheduleCron ?? ''))})`;
   } else {
     workflowType = 'manual';

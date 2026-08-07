@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateWorkflow } from '@/lib/workflows/agent';
 import { getConfigStatus } from '@/lib/keeperhub';
-import { isTelegramConfigured, verifyTelegramConnection } from '@/lib/workflows/telegram';
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,14 +15,9 @@ export async function POST(request: NextRequest) {
       chatId: typeof body.chatId === 'string' ? body.chatId : undefined,
     });
 
-    const telegram = isTelegramConfigured()
-      ? await verifyTelegramConnection().catch(() => ({ ok: false, error: 'Telegram check failed' }))
-      : { ok: false, error: 'TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID not configured' };
-
     return NextResponse.json({
       draft,
       keeperHub: getConfigStatus(),
-      telegram,
     });
   } catch (error) {
     return NextResponse.json(

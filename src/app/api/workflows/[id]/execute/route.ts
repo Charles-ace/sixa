@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getWorkflowProvider } from '@/lib/workflows/provider';
 import { ProviderError } from '@/lib/keeperhub/providers/http';
-import { sendTelegramMessage, buildAgentNotices } from '@/lib/workflows/telegram';
 
 const WORKFLOW_ID_RE = /^[a-z0-9]{10,40}$/i;
 
@@ -19,9 +18,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const result = await provider.executeWorkflow(id, input);
 
     if (result.executionId) {
-      const notices = buildAgentNotices();
-      const sent = await sendTelegramMessage(notices.executionStarted('workflow ' + id, result.executionId)).catch(() => null);
-      return NextResponse.json({ executionId: result.executionId, status: result.status, telegram: sent ?? { ok: false, reason: 'no dispatch' } });
+      return NextResponse.json({ executionId: result.executionId, status: result.status });
     }
 
     return NextResponse.json(result, { status: result.status === 'failed' ? 502 : 200 });

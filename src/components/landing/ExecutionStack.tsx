@@ -6,14 +6,18 @@ import { cn } from '@/lib/utils';
 const stack = [
   { layer: 'Frontend', file: 'Next.js 15 · App Router', does: 'Chat interface, wallet, portfolio, audit panel', state: 'Live' },
   { layer: 'Wallet Provider', file: 'EIP-1193 · viem', does: 'MetaMask & EVM wallet session, balances, networks', state: 'Live' },
-  { layer: 'LLM', file: 'OpenRouter · llama 3.1', does: 'Explains intents in natural language', state: 'Live' },
-  { layer: 'Intent Parser', file: 'sixa/intent-parser.ts', does: 'Maps sentences → swap / bridge / stake / portfolio', state: 'Live' },
-  { layer: 'Simulation', file: 'keeperhub/providers/', does: 'On-chain dry-run, revert checks, live gas estimate', state: 'Live' },
-  { layer: 'Execution', file: 'keeperhub/providers/', does: 'REST / MCP transports, idempotent broadcast, receipt verification, audit log', state: 'Live' },
+  { layer: 'LLM', file: 'OpenRouter · llama 3.1', does: 'Conversational agent, explains intents and decisions', state: 'Live' },
+  { layer: 'Agent', file: 'sixa/workflows/agent.ts', does: 'Builds monitoring/alert/rebalance strategies from natural language', state: 'Live' },
+  { layer: 'Notifications', file: 'KeeperHub channels', does: 'Telegram + Discord alerts attached automatically to workflows', state: 'Live' },
+  { layer: 'Simulation', file: 'keeperhub/providers/', does: 'On-chain dry-run, revert checks, live gas estimate', state: 'In progress' },
+  { layer: 'Execution', file: 'keeperhub/providers/', does: 'REST relay, idempotent broadcast, receipt verification, audit log', state: 'Live' },
+  { layer: 'Autonomous Mode', file: 'sixa/decision-engine', does: 'Predefined strategies execute without approval', state: 'In progress' },
 ];
 
 const STATE_COLORS: Record<string, string> = {
   Live: 'text-success border-success/30 bg-success/5',
+  'In progress': 'text-foreground border-black/20 bg-black/5',
+  'Not live': 'text-muted border-black/10 bg-black/[0.02]',
 };
 
 export function ExecutionStack() {
