@@ -55,7 +55,7 @@ export function normalizeError(status: number, body: unknown): ProviderError {
 }
 
 export interface RequestOptions {
-  method?: 'GET' | 'POST';
+  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   path: string;
   body?: unknown;
   apiKey?: string;
