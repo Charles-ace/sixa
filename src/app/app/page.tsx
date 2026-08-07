@@ -3,16 +3,19 @@
 import { useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useWallet } from '@/hooks/useWallet';
+import { useAuth } from '@/hooks/useAuth';
 import { ChatPanel } from '@/components/app/ChatPanel';
 import { WalletCard } from '@/components/app/WalletCard';
 import { PortfolioCard } from '@/components/app/PortfolioCard';
 import { AuditPanel } from '@/components/app/AuditPanel';
+import { AuthCard } from '@/components/app/AuthCard';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import type { AuditEntry } from '@/lib/types';
 
 export default function AppPage() {
   const wallet = useWallet();
+  const auth = useAuth();
   const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
 
   const handleAuditEntry = useCallback((entry: AuditEntry) => {
@@ -44,6 +47,7 @@ export default function AppPage() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="space-y-6 lg:sticky lg:top-24"
           >
+            <AuthCard />
             <WalletCard
               wallet={wallet}
               onConnect={wallet.connect}
@@ -68,6 +72,8 @@ export default function AppPage() {
                 walletAddress={wallet.address}
                 chainId={wallet.chainId}
                 walletConnected={wallet.isConnected}
+                accountAddress={auth.account?.accountAddress}
+                accountEmail={auth.account?.email}
                 onAuditEntry={handleAuditEntry}
               />
             </div>

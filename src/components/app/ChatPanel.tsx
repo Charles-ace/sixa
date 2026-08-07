@@ -13,6 +13,8 @@ interface ChatPanelProps {
   walletAddress?: string;
   chainId?: number;
   walletConnected: boolean;
+  accountAddress?: string;
+  accountEmail?: string;
   onAuditEntry: (entry: AuditEntry) => void;
 }
 
@@ -30,7 +32,7 @@ interface PreviewState {
   simulation: SimulationResult;
 }
 
-export function ChatPanel({ walletAddress, chainId = 1, walletConnected, onAuditEntry }: ChatPanelProps) {
+export function ChatPanel({ walletAddress, chainId = 1, walletConnected, accountAddress, accountEmail, onAuditEntry }: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isThinking, setIsThinking] = useState(false);
@@ -98,7 +100,7 @@ export function ChatPanel({ walletAddress, chainId = 1, walletConnected, onAudit
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, history, walletAddress, chainId }),
+        body: JSON.stringify({ message: text, history, walletAddress, chainId, accountAddress, accountEmail }),
       });
 
       if (!response.ok) throw new Error('Chat request failed');
@@ -128,7 +130,7 @@ export function ChatPanel({ walletAddress, chainId = 1, walletConnected, onAudit
     } finally {
       setIsThinking(false);
     }
-  }, [input, isThinking, isExecuting, messages, appendMessage, walletAddress, chainId]);
+  }, [input, isThinking, isExecuting, messages, appendMessage, walletAddress, chainId, accountAddress, accountEmail]);
 
   const handleExecute = useCallback(async () => {
     if (!preview || !walletAddress || isExecuting) return;

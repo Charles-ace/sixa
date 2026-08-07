@@ -170,7 +170,7 @@ async function handleDeploy(message: string, history: unknown[]) {  const prior 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { message, history = [], walletAddress, chainId } = body;
+    const { message, history = [], walletAddress, chainId, accountAddress, accountEmail } = body;
 
     if (!message || typeof message !== 'string') {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 });
@@ -253,6 +253,8 @@ export async function POST(request: NextRequest) {
     const contextLines = [
       `Wallet connected: ${walletAddress ? 'yes' : 'no'}`,
       walletAddress ? `Wallet: ${walletAddress}` : '',
+      `Account: ${accountEmail ? accountEmail : 'guest'}`,
+      accountAddress ? `KeeperHub account address: ${accountAddress}` : '',
       `Chain ID: ${chainId ?? 1}`,
       `Execution provider: ${config.provider} (${config.mode})`,
       `Protected execution: ${config.protectedExecution ? 'enabled' : 'disabled'}`,
