@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/workflows/decision?run=1",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 9 * * *"
     }
   ]
 }
