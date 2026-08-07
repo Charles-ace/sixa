@@ -14,8 +14,9 @@ export class ProviderError extends Error {
   readonly requestId?: string;
   readonly status?: number;
   readonly docs?: string;
+  readonly body?: unknown;
 
-  constructor(opts: { code: string; message: string; hint?: string; requestId?: string; status?: number; docs?: string }) {
+  constructor(opts: { code: string; message: string; hint?: string; requestId?: string; status?: number; docs?: string; body?: unknown }) {
     super(opts.message);
     this.name = 'ProviderError';
     this.code = opts.code;
@@ -23,6 +24,7 @@ export class ProviderError extends Error {
     this.requestId = opts.requestId;
     this.status = opts.status;
     this.docs = opts.docs;
+    this.body = opts.body;
   }
 }
 
@@ -40,7 +42,7 @@ export function isKeeperHubErrorBody(value: unknown): value is KeeperHubErrorBod
 
 export function normalizeError(status: number, body: unknown): ProviderError {
   if (!isKeeperHubErrorBody(body)) {
-    return new ProviderError({ code: 'http_error', message: `KeeperHub returned HTTP ${status} with an unreadable body.`, status });
+    return new ProviderError({ code: 'http_error', message: `KeeperHub returned HTTP ${status} with an unreadable body.`, status, body });
   }
 
   const code = String(body.code ?? body.error ?? 'http_error');
@@ -49,7 +51,7 @@ export function normalizeError(status: number, body: unknown): ProviderError {
   const docs = body.docs;
   const requestId = body.request_id;
 
-  return new ProviderError({ code, message, hint, requestId, status, docs });
+  return new ProviderError({ code, message, hint, requestId, status, docs, body });
 }
 
 export interface RequestOptions {
@@ -101,6 +103,7 @@ export async function keeperHubFetch<T>(
         message: 'Rate limited by KeeperHub. Wait and retry.',
         hint: retryAfter ? `Retry after ${retryAfter}s.` : undefined,
         status: 429,
+        body,
       });
     }
     throw normalizeError(response.status, body);

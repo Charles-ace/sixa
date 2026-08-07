@@ -253,6 +253,24 @@ export class KeeperHubRestProvider implements ExecutionProvider {
       };
     } catch (error) {
       if (error instanceof ProviderError) {
+        const body = error.body as SimulatedTransferResponse | null | undefined;
+        if (body && body.wouldRevert === true) {
+          const warnings: string[] = [];
+          if (body.code === 'insufficient_balance' && body.shortfallWei) {
+            warnings.push(`Sender is short ${body.shortfallWei} wei (${body.nativeSymbol ?? 'native'}).`);
+          }
+          return {
+            ok: false,
+            wouldRevert: true,
+            revertReason: body.revertReason ?? body.error ?? error.message,
+            errorCode: body.code ?? error.code,
+            from: body.from,
+            to: body.to,
+            gas: { gasEstimateUnits: '', congestion: 'unknown', strategy: '', gasCostUsd: null },
+            expectedOutcome: '',
+            warnings,
+          };
+        }
         throw error;
       }
       throw new ProviderError({
