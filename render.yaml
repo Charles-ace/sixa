@@ -6,7 +6,8 @@ services:
     dockerfilePath: ./Dockerfile
     plan: free
     region: frankfurt
-    healthCheckPath: /
+    autoDeploy: true
+    healthCheckPath: /api/health
     envVars:
       - key: PORT
         value: 3000
