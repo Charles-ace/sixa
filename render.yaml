@@ -1,13 +1,14 @@
 services:
   - type: web
     name: sixa-broker
-    runtime: docker
+    runtime: node
     repo: https://github.com/Charles-ace/sixa
-    dockerfilePath: ./Dockerfile
     plan: free
     region: frankfurt
-    autoDeploy: true
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
     healthCheckPath: /api/health
+    autoDeploy: true
     envVars:
       - key: PORT
         value: 3000
