@@ -2,6 +2,8 @@
 
 import { useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
+import Link from 'next/link';
+import { ArrowUpRight } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { BrokerIntake } from '@/components/broker/BrokerIntake';
@@ -31,8 +33,24 @@ export default function BrokerPage() {
             Describe a goal in plain language. Sixa discovers live KeeperHub marketplace listings, selects the best fit
             within your budget cap, settles the x402 payment, executes, and independently verifies the outcome against
             KeeperHub&apos;s own execution status — every step recorded in the audit trail.
-          </p>
-        </motion.div>
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link
+                href="/app"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground border border-black/15 rounded-xl px-4 py-2 hover:bg-black/5 transition-colors"
+              >
+                Chat
+                <ArrowUpRight className="w-4 h-4" />
+              </Link>
+              <Link
+                href="/app/agent-api"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground border border-black/15 rounded-xl px-4 py-2 hover:bg-black/5 transition-colors"
+              >
+                Agent API — build with Sixa
+                <ArrowUpRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </motion.div>
 
         <div className="space-y-6">
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>

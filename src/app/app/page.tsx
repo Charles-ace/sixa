@@ -40,13 +40,22 @@ export default function AppPage() {
             Describe any action in plain language. Sixa parses your intent, simulates the transaction,
             and executes securely through KeeperHub — with a full audit trail.
           </p>
-          <Link
-            href="/app/broker"
-            className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-foreground border border-black/15 rounded-xl px-4 py-2 hover:bg-black/5 transition-colors"
-          >
-            Intent Broker — marketplace jobs
-            <ArrowUpRight className="w-4 h-4" />
-          </Link>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link
+              href="/app/broker"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground border border-black/15 rounded-xl px-4 py-2 hover:bg-black/5 transition-colors"
+            >
+              Intent Broker — marketplace jobs
+              <ArrowUpRight className="w-4 h-4" />
+            </Link>
+            <Link
+              href="/app/agent-api"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground border border-black/15 rounded-xl px-4 py-2 hover:bg-black/5 transition-colors"
+            >
+              Agent API — build with Sixa
+              <ArrowUpRight className="w-4 h-4" />
+            </Link>
+          </div>
         </motion.div>
 
         <div className="grid lg:grid-cols-[340px_1fr] gap-6 items-start">
