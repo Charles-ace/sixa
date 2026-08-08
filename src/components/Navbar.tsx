@@ -26,7 +26,6 @@ export function Navbar() {
 
   const APP_TABS = [
     { href: '/app', label: 'Broker' },
-    { href: '/app/chat', label: 'Chat' },
     { href: '/app/agent-api', label: 'Agent API' },
   ] as const;
 
