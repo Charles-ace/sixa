@@ -108,8 +108,11 @@ export function BrokerIntake({ onJobCreated }: BrokerIntakeProps) {
             inputMode="decimal"
             className="w-28 bg-black/[0.04] border border-border rounded-lg px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-foreground/25"
           />
-          <label className="flex items-center gap-1.5 text-xs text-secondary cursor-pointer ml-auto">
-            <input type="checkbox" checked={payReal} onChange={(e) => setPayReal(e.target.checked)} className="accent-foreground" />
+          <label
+            className={cn('flex items-center gap-1.5 text-xs ml-auto', configMode === 'real' ? 'text-secondary cursor-pointer' : 'text-secondary/60 cursor-not-allowed')}
+            title={configMode === 'real' ? 'Payments will be broadcast from the configured broker wallet' : 'Real payments are unavailable: BROKER_PAYER_PRIVATE_KEY is not configured on this deployment'}
+          >
+            <input type="checkbox" checked={payReal && configMode === 'real'} disabled={configMode !== 'real'} onChange={(e) => setPayReal(e.target.checked)} className="accent-foreground disabled:cursor-not-allowed" />
             request real x402 payment
           </label>
         </div>

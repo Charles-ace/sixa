@@ -42,6 +42,9 @@ next-env.d.ts
 
 .vercel
 
+# broker job store
+.data/
+
 server.log
 dev-*.log
 .env*

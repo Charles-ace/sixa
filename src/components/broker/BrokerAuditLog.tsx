@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { History } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { AuditEvent } from '@/lib/broker/types';
@@ -22,12 +22,15 @@ const EVENT_TONE: Record<string, 'ok' | 'warn' | 'err' | 'info'> = {
   fallback_started: 'warn',
   fallback_generation: 'warn',
   fallback_executed: 'err',
+  candidate_failed: 'err',
   job_completed: 'ok',
   job_failed: 'err',
 };
 
 export function BrokerAuditLog({ jobId, refreshKey }: { jobId: string; refreshKey: number }) {
   const [events, setEvents] = useState<AuditEvent[]>([]);
+  const [pinnedToBottom, setPinnedToBottom] = useState(true);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,7 +38,12 @@ export function BrokerAuditLog({ jobId, refreshKey }: { jobId: string; refreshKe
       try {
         const res = await fetch(`/api/broker/jobs/${jobId}/audit`);
         const data = await res.json();
-        if (!cancelled) setEvents(data.audit ?? []);
+        if (!cancelled) {
+          const next = data.audit ?? [];
+          setEvents((prev) =>
+            prev.length === next.length && prev[prev.length - 1]?.id === next[next.length - 1]?.id ? prev : next
+          );
+        }
       } catch {
         // keep polling
       }
@@ -47,6 +55,19 @@ export function BrokerAuditLog({ jobId, refreshKey }: { jobId: string; refreshKe
       clearInterval(id);
     };
   }, [jobId, refreshKey]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el && pinnedToBottom) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [events.length, pinnedToBottom]);
+
+  const handleScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setPinnedToBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 24);
+  };
 
   if (events.length === 0) {
     return (
@@ -64,8 +85,8 @@ export function BrokerAuditLog({ jobId, refreshKey }: { jobId: string; refreshKe
         <h3 className="text-sm font-medium text-foreground">Audit trail</h3>
         <span className="text-xs px-2 py-0.5 rounded-full bg-black/5 text-foreground border border-black/15">{events.length}</span>
       </div>
-      <div className="max-h-[420px] overflow-y-auto divide-y divide-black/[0.06]">
-        {[...events].reverse().map((event) => {
+      <div ref={scrollRef} onScroll={handleScroll} className="h-[420px] overflow-y-auto divide-y divide-black/[0.06]">
+        {events.map((event) => {
           const tone = EVENT_TONE[event.type] ?? 'info';
           return (
             <div key={event.id} className="px-5 py-3">

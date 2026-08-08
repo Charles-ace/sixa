@@ -7,9 +7,13 @@ import { verifyExecution } from './verify';
 import { generateAndRun } from './generate';
 import { generateId } from '@/lib/utils';
 import { ProviderError } from '@/lib/keeperhub/providers/http';
+import { loadJobs, saveJobs } from './store';
 import type { AuditEvent, AuditEventType, BrokerJob, ExecutionResult, JobSpec, ListingCandidate, PaymentMode } from './types';
 
 const jobs = new Map<string, BrokerJob>();
+for (const job of loadJobs()) {
+  jobs.set(job.id, job);
+}
 const MAX_JOBS = 50;
 
 export const brokerMcpClient = new BrokerMcpClient();
@@ -70,9 +74,14 @@ function setStatus(job: BrokerJob, status: BrokerJob['status']): void {
 function storeJob(job: BrokerJob): void {
   jobs.set(job.id, job);
   if (jobs.size > MAX_JOBS) {
-    const oldest = [...jobs.keys()].slice(0, jobs.size - MAX_JOBS);
+    const oldest = [...jobs.keys()].sort((a, b) => {
+      const ja = jobs.get(a);
+      const jb = jobs.get(b);
+      return (ja?.createdAt ?? '').localeCompare(jb?.createdAt ?? '');
+    }).slice(0, jobs.size - MAX_JOBS);
     for (const key of oldest) jobs.delete(key);
   }
+  saveJobs([...jobs.values()]);
 }
 
 export function getJob(jobId: string): BrokerJob | null {
@@ -165,6 +174,7 @@ async function executePipeline(job: BrokerJob): Promise<void> {
       setStatus(job, 'failed');
       pushAudit(job, 'job_failed', 'Forced listing unavailable.', { slug: job.forcedSlug, error: job.error });
       job.report = buildFailureReport(job);
+      storeJob(job);
       return;
     }
   }
@@ -181,11 +191,38 @@ async function executePipeline(job: BrokerJob): Promise<void> {
     reason: selection.reason,
     runnerUp: selection.runnerUp?.slug ?? null,
   });
+  storeJob(job);
 
-  // Quote + pay
+  // Try the selected listing first, then each remaining candidate in order.
+  const ordered = [
+    selection.selected,
+    ...candidates.filter((c) => c.slug !== selection.selected.slug),
+  ];
+
+  for (const candidate of ordered) {
+    try {
+      await runCandidate(job, client, candidate);
+      return;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown error';
+      pushAudit(job, 'candidate_failed', `Listing "${candidate.slug}" failed at call time.`, { slug: candidate.slug, error: message });
+      setStatus(job, 'selecting');
+      storeJob(job);
+    }
+  }
+
+  // Every live listing failed — generate a workflow as a last resort.
+  await attemptGenerationFallback(job, client);
+}
+
+/**
+ * Quote → pay → execute → verify for a single candidate. Throws on any
+ * failure so the pipeline can move on to the next candidate.
+ */
+async function runCandidate(job: BrokerJob, client: BrokerMcpClient, candidate: ListingCandidate): Promise<void> {
   setStatus(job, 'quoting');
-  const params = normalizeParams(job.spec.params, selection.selected.inputSchema);
-  const call = await client.callWorkflow(selection.selected.slug, params);
+  const params = normalizeParams(job.spec.params, candidate.inputSchema);
+  const call = await client.callWorkflow(candidate.slug, params);
 
   if (call.quote) {
     job.quote = call.quote;
@@ -200,7 +237,7 @@ async function executePipeline(job: BrokerJob): Promise<void> {
     if (call.quote.amountUsdc > (job.spec.maxPriceUsdc ?? Infinity)) {
       throw new ProviderError({
         code: 'price_over_cap',
-        message: `The live quote for "${selection.selected.slug}" is $${call.quote.amountUsdc.toFixed(2)}, above the $${(job.spec.maxPriceUsdc ?? 0).toFixed(2)} cap.`,
+        message: `The live quote for "${candidate.slug}" is $${call.quote.amountUsdc.toFixed(2)}, above the $${(job.spec.maxPriceUsdc ?? 0).toFixed(2)} cap.`,
       });
     }
 
@@ -218,10 +255,11 @@ async function executePipeline(job: BrokerJob): Promise<void> {
         ...(payment.txHash ? { txHash: payment.txHash } : {}),
       }
     );
+    storeJob(job);
 
     // Execute now that payment is confirmed
     setStatus(job, 'executing');
-    const execution = await client.callWorkflow(selection.selected.slug, params);
+    const execution = await client.callWorkflow(candidate.slug, params);
 
     if (job.payMode === 'simulated' && execution.quote) {
       // Simulated mode: the x402 gateway still requires real payment, so no
@@ -239,14 +277,14 @@ async function executePipeline(job: BrokerJob): Promise<void> {
       };
       job.execution = simulated;
       pushAudit(job, 'execution_completed', 'Simulated execution — payment was not real, so the listing returned a fresh x402 quote instead of executing.', {
-        slug: selection.selected.slug,
+        slug: candidate.slug,
         payMode: job.payMode,
       });
       pushAudit(job, 'verification_passed', 'Independent verification PASSED (simulated execution has no on-chain counterpart).', {
         payMode: job.payMode,
       });
       setStatus(job, 'completed');
-      pushAudit(job, 'job_completed', 'Job completed (simulated payment path).', { slug: selection.selected.slug });
+      pushAudit(job, 'job_completed', 'Job completed (simulated payment path).', { slug: candidate.slug });
       job.report = buildSuccessReport(job);
       storeJob(job);
       return;
@@ -258,7 +296,7 @@ async function executePipeline(job: BrokerJob): Promise<void> {
     if (!execution.executionId) {
       throw new ProviderError({
         code: 'no_execution_id',
-        message: 'The workflow ran but returned no execution id to verify against.',
+        message: `The workflow "${candidate.slug}" ran but returned no execution id to verify against.`,
         hint: 'Verification requires a KeeperHub execution id; treat this as unverified.',
       });
     }
@@ -269,93 +307,41 @@ async function executePipeline(job: BrokerJob): Promise<void> {
     setStatus(job, 'verifying');
     const verified = await verifyExecution(client, execution.executionId);
     job.execution = verified;
-    if (verified.completed) {
-      pushAudit(job, 'verification_passed', 'Independent verification passed via KeeperHub execution status.', {
-        executionId: execution.executionId,
-        status: verified.status,
-      });
-      pushAudit(job, 'execution_completed', 'Workflow completed.', { executionId: execution.executionId, status: verified.status });
-    } else {
+    if (!verified.completed) {
       pushAudit(job, 'verification_failed', 'Independent verification failed.', {
         executionId: execution.executionId,
         error: verified.error,
       });
-      await attemptFallback(job, client);
-      return;
+      throw new ProviderError({ code: 'verification_failed', message: verified.error ?? 'Execution did not verify.' });
     }
+    pushAudit(job, 'verification_passed', 'Independent verification passed via KeeperHub execution status.', {
+      executionId: execution.executionId,
+      status: verified.status,
+    });
+    pushAudit(job, 'execution_completed', 'Workflow completed.', { executionId: execution.executionId, status: verified.status });
   } else if (call.executionId) {
     // Free (unpriced) listing — ran directly.
     job.execution = { executionId: call.executionId, status: call.status, output: call.output, completed: false, failed: false, error: null, verified: false, receipts: [] };
     pushAudit(job, 'execution_requested', 'Execution started (free listing).', { executionId: call.executionId });
+    storeJob(job);
     setStatus(job, 'verifying');
     const verified = await verifyExecution(client, call.executionId);
     job.execution = verified;
-    if (verified.completed) {
-      pushAudit(job, 'verification_passed', 'Independent verification passed via KeeperHub execution status.', {
-        executionId: call.executionId,
-        status: verified.status,
-      });
-      pushAudit(job, 'execution_completed', 'Workflow completed.', { executionId: call.executionId, status: verified.status });
-    } else {
+    if (!verified.completed) {
       pushAudit(job, 'verification_failed', 'Independent verification failed.', { executionId: call.executionId, error: verified.error });
-      await attemptFallback(job, client);
-      return;
+      throw new ProviderError({ code: 'verification_failed', message: verified.error ?? 'Execution did not verify.' });
     }
-  } else {
-    throw new ProviderError({ code: 'call_failed', message: call.error ?? 'The workflow call returned neither a quote nor an execution id.' });
-  }
-
-  setStatus(job, 'completed');
-  pushAudit(job, 'job_completed', 'Job completed.', { slug: job.selected?.slug });
-  job.report = buildSuccessReport(job);
-  storeJob(job);
-}
-
-async function attemptFallback(job: BrokerJob, client: BrokerMcpClient): Promise<void> {
-  const primary = job.selected;
-  const runnerUp = job.candidates.find((c) => c.slug !== primary?.slug);
-  if (!runnerUp) {
-    await attemptGenerationFallback(job, client);
-    return;
-  }
-
-  pushAudit(job, 'fallback_started', `Primary listing failed verification; trying "${runnerUp.slug}".`, { slug: runnerUp.slug });
-  setStatus(job, 'quoting');
-  const params = normalizeParams(job.spec.params, runnerUp.inputSchema);
-  const call = await client.callWorkflow(runnerUp.slug, params);
-
-  if (call.quote) {
-    if (call.quote.amountUsdc > (job.spec.maxPriceUsdc ?? Infinity)) {
-      await attemptGenerationFallback(job, client);
-      return;
-    }
-    const payment = await payX402(call.quote, job.payMode);
-    pushAudit(job, payment.mode === 'simulated' ? 'payment_simulated' : 'payment_made', 'Fallback listing payment handled.', {
-      slug: runnerUp.slug,
-      mode: payment.mode,
-      amountUsdc: call.quote.amountUsdc,
+    pushAudit(job, 'verification_passed', 'Independent verification passed via KeeperHub execution status.', {
+      executionId: call.executionId,
+      status: verified.status,
     });
+    pushAudit(job, 'execution_completed', 'Workflow completed.', { executionId: call.executionId, status: verified.status });
+  } else {
+    throw new ProviderError({ code: 'call_failed', message: call.error ?? `The workflow call for "${candidate.slug}" returned neither a quote nor an execution id.` });
   }
 
-  const execution = await client.callWorkflow(runnerUp.slug, params);
-  if (execution.error || !execution.executionId) {
-    await attemptGenerationFallback(job, client);
-    return;
-  }
-
-  setStatus(job, 'verifying');
-  const verified = await verifyExecution(client, execution.executionId);
-  if (!verified.completed) {
-    await attemptGenerationFallback(job, client);
-    return;
-  }
-
-  job.execution = verified;
-  job.selected = runnerUp;
-  pushAudit(job, 'verification_passed', 'Fallback listing verified successfully.', { executionId: execution.executionId, status: verified.status });
-  pushAudit(job, 'execution_completed', 'Fallback workflow completed.', { executionId: execution.executionId });
   setStatus(job, 'completed');
-  pushAudit(job, 'job_completed', 'Job completed via fallback listing.', { slug: runnerUp.slug });
+  pushAudit(job, 'job_completed', 'Job completed.', { slug: candidate.slug });
   job.report = buildSuccessReport(job);
   storeJob(job);
 }
@@ -405,7 +391,7 @@ function buildSuccessReport(job: BrokerJob): string {
     `Price: $${job.selected?.priceUsdcPerCall.toFixed(2)}/call`,
     ...(job.payment ? [`Payment: ${job.payment.mode === 'simulated' ? 'simulated' : `real (tx ${job.payment.txHash})`} — $${job.payment.amountUsdc.toFixed(2)} ${job.payment.asset}`] : []),
     ...(job.execution?.executionId ? [`Execution id: ${job.execution.executionId}`] : []),
-    `Status: ${job.execution?.status}`,
+    `Status: ${job.execution?.status ?? 'pending'}`,
     `Verified: ${job.execution?.verified ? 'yes (KeeperHub execution status)' : 'no'}`,
   ];
   return lines.join('\n');

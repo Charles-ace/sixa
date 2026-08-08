@@ -98,6 +98,7 @@ export type AuditEventType =
   | 'fallback_started'
   | 'fallback_generation'
   | 'fallback_executed'
+  | 'candidate_failed'
   | 'job_completed'
   | 'job_failed';
 
