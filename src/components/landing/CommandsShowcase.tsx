@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 
 const commands = [
   { text: 'swap 100 USDC → ETH', desc: 'Best-route token swaps' },
-  { text: 'bridge 500 USDC → Base', desc: 'Cross-chain moves' },
+  { text: 'bridge 500 USDC → Base', desc: 'Cross-chain moves (beta)' },
   { text: 'stake my ETH', desc: 'Staking, protocol selected for you' },
   { text: 'show my portfolio', desc: 'Live balances across networks' },
   { text: 'how much ETH do I have?', desc: 'Instant balance answers' },

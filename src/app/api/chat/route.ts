@@ -8,6 +8,7 @@ import { simulateForChat, getConfigStatus } from '@/lib/keeperhub';
 import { generateWorkflow } from '@/lib/workflows/agent';
 import { getWorkflowProvider } from '@/lib/workflows/provider';
 import { getWalletPortfolio, getBalance, getRecentActivity, chainDisplayNames } from '@/lib/chain';
+import { rateLimit, clientIp } from '@/lib/rate-limit';
 
 const WORKFLOW_WORDS = /(workflow|automation|strategy|monitor|watch|track|alert|notify|rebalance|schedule|every (day|week|month|hour|minute)|when .* (drop|fall|rise|reach|below|above))/i;
 
@@ -169,6 +170,15 @@ async function handleDeploy(message: string, history: unknown[]) {  const prior 
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = clientIp(request);
+    const limiter = rateLimit(`chat:${ip}`, { limit: 20, windowMs: 60 * 1000 });
+    if (!limiter.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Try again in a minute.', code: 'rate_limited', retryAfterSeconds: Math.ceil(limiter.retryAfterMs / 1000) },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
     const { message, history = [], walletAddress, chainId, accountAddress, accountEmail } = body;
 

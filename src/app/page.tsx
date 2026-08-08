@@ -10,6 +10,7 @@ import { DeployStatus } from '@/components/landing/DeployStatus';
 import { ExecutionStack } from '@/components/landing/ExecutionStack';
 import { FAQ } from '@/components/landing/FAQ';
 import { LandingCTA } from '@/components/landing/LandingCTA';
+import { SignInBanner } from '@/components/SignInBanner';
 
 export const metadata: Metadata = {
   title: 'Sixa — AI On-Chain Execution Assistant',
@@ -39,6 +40,7 @@ export default function Home() {
       </main>
 
       <Footer />
+      <SignInBanner />
     </div>
   );
 }

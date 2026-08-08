@@ -1,32 +1,61 @@
 'use client';
 
-import { useState } from 'react';
-import { Mail, LogOut, Loader2, Check, Sparkles } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Mail, LogOut, Loader2, Check, Sparkles, ArrowLeft, ShieldAlert } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import { formatAddress } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 
 export function AuthCard() {
-  const { loading, authenticated, account, signInWithGoogle, signInWithEmail, signOut } = useAuth();
+  const { loading, authenticated, account, signInWithGoogle, startEmailSignIn, verifyEmailCode, signOut } = useAuth();
   const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [step, setStep] = useState<'email' | 'code'>('email');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [justSignedIn, setJustSignedIn] = useState(false);
+  const [devCode, setDevCode] = useState<string | undefined>(undefined);
+  const [config, setConfig] = useState<{ googleConfigured: boolean; emailConfigured: boolean } | null>(null);
 
-  const handleSubmit = async () => {
+  useEffect(() => {
+    fetch('/api/auth/config', { cache: 'no-store' })
+      .then((res) => res.json())
+      .then((data) => setConfig({ googleConfigured: Boolean(data.googleConfigured), emailConfigured: Boolean(data.emailConfigured) }))
+      .catch(() => setConfig({ googleConfigured: false, emailConfigured: false }));
+  }, []);
+
+  const handleSendCode = async () => {
     if (!email.trim()) return;
     setIsSubmitting(true);
     setError(null);
+    setDevCode(undefined);
     try {
-      await signInWithEmail(email.trim());
-      setJustSignedIn(true);
+      const result = await startEmailSignIn(email.trim());
+      setDevCode(result.devCode);
+      setStep('code');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sign-in failed');
+      setError(err instanceof Error ? err.message : 'Failed to send code');
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const handleVerify = async () => {
+    if (!/^\d{6}$/.test(code)) return;
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      await verifyEmailCode(email.trim(), code);
+      setStep('email');
+      setCode('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Verification failed');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const googleDisabled = config === null || !config.googleConfigured;
 
   return (
     <div className="rounded-2xl bg-surface/60 border border-border backdrop-blur-xl overflow-hidden">
@@ -85,7 +114,13 @@ export function AuthCard() {
           <div className="space-y-3">
             <button
               onClick={signInWithGoogle}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-foreground text-background text-sm font-medium hover:opacity-85 active:scale-[0.98] transition-all"
+              disabled={googleDisabled}
+              className={cn(
+                'w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-foreground text-background text-sm font-medium transition-all',
+                googleDisabled
+                  ? 'opacity-40 cursor-not-allowed'
+                  : 'hover:opacity-85 active:scale-[0.98]'
+              )}
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true">
                 <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -95,6 +130,11 @@ export function AuthCard() {
               </svg>
               Continue with Google
             </button>
+            {googleDisabled && (
+              <p className="text-[11px] text-secondary/70 flex items-center gap-1.5">
+                <ShieldAlert className="w-3 h-3" /> Google sign-in is being configured on this deployment.
+              </p>
+            )}
 
             <div className="flex items-center gap-3">
               <div className="h-px bg-black/10 flex-1" />
@@ -102,36 +142,76 @@ export function AuthCard() {
               <div className="h-px bg-black/10 flex-1" />
             </div>
 
-            <div className="space-y-1.5">
-              <div className="flex gap-1.5">
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(); }}
-                  placeholder="you@example.com"
-                  className="flex-1 min-w-0 px-3 py-2.5 rounded-xl bg-black/[0.04] border border-border text-sm text-foreground placeholder-secondary/60 focus:outline-none focus:ring-2 focus:ring-foreground/25"
-                />
-                <Button
-                  size="sm"
-                  className="shrink-0"
-                  onClick={handleSubmit}
-                  disabled={!email.trim() || isSubmitting}
-                >
-                  {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <span className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" /> Sign in</span>}
-                </Button>
+            {step === 'email' ? (
+              <div className="space-y-1.5">
+                <div className="flex gap-1.5">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleSendCode(); }}
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                    className="flex-1 min-w-0 px-3 py-2.5 rounded-xl bg-black/[0.04] border border-border text-sm text-foreground placeholder-secondary/60 focus:outline-none focus:ring-2 focus:ring-foreground/25"
+                  />
+                  <Button
+                    size="sm"
+                    className="shrink-0"
+                    onClick={handleSendCode}
+                    disabled={!email.trim() || isSubmitting}
+                  >
+                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <span className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" /> Get code</span>}
+                  </Button>
+                </div>
+                <p className="text-[11px] text-secondary/70">
+                  We email you a one-time code — no password, and only you can use your account.
+                </p>
               </div>
-              <p className="text-[11px] text-secondary/70">
-                No wallet needed for setup — your account address is derived for KeeperHub execution.
-              </p>
-            </div>
+            ) : (
+              <div className="space-y-1.5">
+                <div className="flex gap-1.5">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="w-9 h-9 shrink-0"
+                    aria-label="Back"
+                    onClick={() => { setStep('email'); setError(null); setDevCode(undefined); }}
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                  </Button>
+                  <input
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleVerify(); }}
+                    placeholder="123456"
+                    aria-label="6-digit code"
+                    className="flex-1 min-w-0 px-3 py-2.5 rounded-xl bg-black/[0.04] border border-border text-sm text-foreground placeholder-secondary/60 focus:outline-none focus:ring-2 focus:ring-foreground/25 tracking-widest"
+                  />
+                  <Button
+                    size="sm"
+                    className="shrink-0"
+                    onClick={handleVerify}
+                    disabled={!/^\d{6}$/.test(code) || isSubmitting}
+                  >
+                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Verify'}
+                  </Button>
+                </div>
+                <p className="text-[11px] text-secondary/70">
+                  Sent to <span className="text-secondary">{email}</span>. Expires in 10 minutes.
+                </p>
+              </div>
+            )}
+
+            {devCode && (
+              <div className="rounded-xl bg-black/[0.04] border border-dashed border-border p-3">
+                <p className="text-[11px] font-mono uppercase tracking-wider text-secondary mb-1">Dev mode — sign-in code</p>
+                <p className="text-lg font-mono font-bold tracking-[0.3em] text-foreground">{devCode}</p>
+              </div>
+            )}
 
             {error && <p className="text-xs text-error">{error}</p>}
-            {justSignedIn && (
-              <p className="text-xs text-success flex items-center gap-1.5">
-                <Check className="w-3.5 h-3.5" /> Signed in. Portfolio and balances now run under your account.
-              </p>
-            )}
           </div>
         )}
       </div>

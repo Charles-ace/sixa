@@ -113,7 +113,7 @@ function parseBridge(text: string): ParsedIntent {
     reasoning: [
       `Detected bridge intent${targetChain ? ` to ${targetChain}` : ' (chain unspecified)'}.`,
       `Asset: ${fromToken}${amount ? `, amount ${amount}` : ''}.`,
-      'Will route through a cross-chain bridge provider via KeeperHub.',
+      'Cross-chain bridge routing is in beta on KeeperHub — availability depends on the route and provider.',
     ],
   };
 }

@@ -1,8 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runDecisionCycle } from '@/lib/workflows/decision-engine';
 import { getWorkflowProvider } from '@/lib/workflows/provider';
+import { rateLimit, clientIp } from '@/lib/rate-limit';
+
+function applyRateLimit(request: NextRequest): NextResponse | null {
+  const ip = clientIp(request);
+  const limiter = rateLimit(`decision:${ip}`, { limit: 10, windowMs: 60 * 1000 });
+  if (!limiter.allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests.', code: 'rate_limited', retryAfterSeconds: Math.ceil(limiter.retryAfterMs / 1000) },
+      { status: 429 }
+    );
+  }
+  return null;
+}
 
 export async function POST(request: NextRequest) {
+  const rateLimited = applyRateLimit(request);
+  if (rateLimited) return rateLimited;
+
   const secret = process.env.SIXA_DECISION_SECRET;
   if (secret) {
     const provided = request.headers.get('x-sixa-secret') ?? '';
@@ -30,6 +46,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const rateLimited = applyRateLimit(request);
+  if (rateLimited) return rateLimited;
+
   const secret = process.env.SIXA_DECISION_SECRET;
   if (secret) {
     const provided = request.headers.get('x-sixa-secret') ?? '';

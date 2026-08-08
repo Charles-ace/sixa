@@ -7,8 +7,10 @@ declare module 'lucide-react' {
 
   export const Activity: LucideIcon;
   export const AlertTriangle: LucideIcon;
+  export const AlertCircle: LucideIcon;
   export const ArrowDown: LucideIcon;
   export const ArrowDownRight: LucideIcon;
+  export const ArrowLeft: LucideIcon;
   export const ArrowLeftRight: LucideIcon;
   export const ArrowRight: LucideIcon;
   export const ArrowUpRight: LucideIcon;
@@ -46,6 +48,7 @@ declare module 'lucide-react' {
   export const Search: LucideIcon;
   export const Send: LucideIcon;
   export const Shield: LucideIcon;
+  export const ShieldAlert: LucideIcon;
   export const ShieldCheck: LucideIcon;
   export const ShieldOff: LucideIcon;
   export const Sparkles: LucideIcon;

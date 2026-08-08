@@ -70,6 +70,7 @@ export function buildIntentExplanation(intent: ParsedIntent, simulation?: Simula
   lines.push(`• ${action} ${amount ? `${amount} ` : ''}${from}${intent.type === 'swap' && to ? ` → ${to}` : ''}`);
   if (intent.type === 'bridge' && intent.params?.targetChain) {
     lines.push(`• Destination: ${intent.params.targetChain}`);
+    lines.push('• Cross-chain bridge execution is in beta — routes depend on KeeperHub bridge availability.');
   }
   if (intent.type === 'stake' && intent.params?.protocol) {
     lines.push(`• Protocol: ${intent.params.protocol}`);

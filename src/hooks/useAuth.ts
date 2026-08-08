@@ -61,16 +61,30 @@ export function useAuth() {
     router.push('/api/auth/google');
   }, [router]);
 
-  const signInWithEmail = useCallback(
-    async (email: string) => {
-      const res = await fetch('/api/auth/email', {
+  const startEmailSignIn = useCallback(async (email: string): Promise<{ devCode?: string }> => {
+    const res = await fetch('/api/auth/email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error ?? 'Failed to send sign-in code');
+    }
+    const data = await res.json().catch(() => ({}));
+    return { devCode: data.devCode };
+  }, []);
+
+  const verifyEmailCode = useCallback(
+    async (email: string, code: string) => {
+      const res = await fetch('/api/auth/email/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, code }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? 'Sign-in failed');
+        throw new Error(data.error ?? 'Verification failed');
       }
       await refresh();
     },
@@ -83,5 +97,5 @@ export function useAuth() {
     router.refresh();
   }, [router]);
 
-  return { ...state, signInWithGoogle, signInWithEmail, signOut, refresh };
+  return { ...state, signInWithGoogle, startEmailSignIn, verifyEmailCode, signOut, refresh };
 }
