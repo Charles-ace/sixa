@@ -2,6 +2,7 @@
 
 import { Wallet, Copy, Loader2, LogOut } from 'lucide-react';
 import type { WalletState } from '@/hooks/useWallet';
+import { chainName } from '@/lib/keeperhub/providers/types';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 
@@ -73,7 +74,7 @@ export function WalletCard({ wallet, onConnect, onDisconnect, onRefresh, compact
               <p className="text-xs text-secondary mb-1">Network</p>
               <p className="text-sm font-medium text-foreground flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-success" />
-                {wallet.chainId === 1 ? 'Ethereum' : `Chain ${wallet.chainId}`}
+                {chainName(wallet.chainId)}
               </p>
             </div>
             <div className="rounded-xl bg-black/[0.04] border border-border p-3">

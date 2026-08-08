@@ -1,9 +1,9 @@
 'use client';
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, ShieldCheck, Zap, Wallet } from 'lucide-react';
+import { ArrowRight, Loader2, ShieldCheck, Zap, Wallet } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useWallet } from '@/hooks/useWallet';
 import { AuthCard } from '@/components/app/AuthCard';
@@ -23,9 +23,37 @@ export function LoginContent({ next = '/app' }: { next?: string }) {
     }
   }, [auth.loading, auth.authenticated, safeNext, router]);
 
-  const continueAsGuest = useCallback(() => {
-    router.replace('/app');
-  }, [router]);
+  const [guestState, setGuestState] = useState<{ status: 'idle' | 'signing' | 'error'; error: string | null }>({
+    status: 'idle',
+    error: null,
+  });
+
+  const continueAsGuest = useCallback(async () => {
+    if (!wallet.address || !window.ethereum) return;
+    setGuestState({ status: 'signing', error: null });
+    try {
+      const address = wallet.address;
+      const issuedAt = new Date().toISOString();
+      const message = `Sixa guest sign-in\nWallet: ${address.toLowerCase()}\nIssued at: ${issuedAt}`;
+      const signature = (await window.ethereum.request({
+        method: 'personal_sign',
+        params: [message, address],
+      })) as string;
+
+      const res = await fetch('/api/auth/wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address, message, signature }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? 'Guest sign-in failed');
+      }
+      router.replace('/app');
+    } catch (err) {
+      setGuestState({ status: 'error', error: err instanceof Error ? err.message : 'Guest sign-in failed' });
+    }
+  }, [router, wallet.address]);
 
   return (
     <main className="relative z-10 mx-auto max-w-6xl px-6 pt-28 pb-16">
@@ -96,10 +124,24 @@ export function LoginContent({ next = '/app' }: { next?: string }) {
           />
 
           {wallet.isConnected && wallet.address && (
-            <Button className="w-full gap-2" onClick={continueAsGuest}>
-              Continue to the broker as guest
-              <ArrowRight className="w-4 h-4" />
-            </Button>
+            <div className="space-y-2">
+              <Button className="w-full gap-2" onClick={continueAsGuest} disabled={guestState.status === 'signing'}>
+                {guestState.status === 'signing' ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Signing…
+                  </>
+                ) : (
+                  <>
+                    Continue to the broker as guest
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </Button>
+              {guestState.status === 'error' && (
+                <p className="text-xs text-error text-center">{guestState.error}</p>
+              )}
+            </div>
           )}
 
           <p className="text-center text-[11px] text-secondary/70">

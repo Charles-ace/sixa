@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const SESSION_COOKIE = 'sixa_session';
+const WALLET_COOKIE = 'sixa_wallet';
 
 export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -9,7 +10,7 @@ export default function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (request.cookies.has(SESSION_COOKIE)) {
+  if (request.cookies.has(SESSION_COOKIE) || request.cookies.has(WALLET_COOKIE)) {
     return NextResponse.next();
   }
 
