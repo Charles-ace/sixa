@@ -2,6 +2,8 @@
 
 import { useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
+import Link from 'next/link';
+import { ArrowUpRight } from 'lucide-react';
 import { useWallet } from '@/hooks/useWallet';
 import { useAuth } from '@/hooks/useAuth';
 import { ChatPanel } from '@/components/app/ChatPanel';
@@ -38,6 +40,13 @@ export default function AppPage() {
             Describe any action in plain language. Sixa parses your intent, simulates the transaction,
             and executes securely through KeeperHub — with a full audit trail.
           </p>
+          <Link
+            href="/app/broker"
+            className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-foreground border border-black/15 rounded-xl px-4 py-2 hover:bg-black/5 transition-colors"
+          >
+            Intent Broker — marketplace jobs
+            <ArrowUpRight className="w-4 h-4" />
+          </Link>
         </motion.div>
 
         <div className="grid lg:grid-cols-[340px_1fr] gap-6 items-start">
