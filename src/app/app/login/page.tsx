@@ -1,8 +1,8 @@
 'use client';
 
-import { Suspense, useCallback, useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { ArrowRight, ShieldCheck, Zap, Wallet } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useWallet } from '@/hooks/useWallet';
@@ -10,19 +10,18 @@ import { AuthCard } from '@/components/app/AuthCard';
 import { WalletCard } from '@/components/app/WalletCard';
 import { Button } from '@/components/ui/Button';
 
-function LoginContent() {
+export function LoginContent({ next = '/app' }: { next?: string }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const next = searchParams.get('next') ?? '/app';
+  const safeNext = next.startsWith('/app') ? next : '/app';
 
   const auth = useAuth();
   const wallet = useWallet();
 
   useEffect(() => {
     if (!auth.loading && auth.authenticated) {
-      router.replace(next.startsWith('/app') ? next : '/app');
+      router.replace(safeNext);
     }
-  }, [auth.loading, auth.authenticated, next, router]);
+  }, [auth.loading, auth.authenticated, safeNext, router]);
 
   const continueAsGuest = useCallback(() => {
     router.replace('/app');
@@ -112,14 +111,15 @@ function LoginContent() {
   );
 }
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
+  const params = await searchParams;
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <main>
-        <Suspense>
-          <LoginContent />
-        </Suspense>
-      </main>
+      <LoginContent next={params.next} />
     </div>
   );
 }
