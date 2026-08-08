@@ -44,8 +44,8 @@ export function Footer() {
               <span className="font-semibold text-[15px] tracking-tight">sixa</span>
             </Link>
             <p className="text-sm text-secondary leading-relaxed max-w-xs">
-              AI on-chain execution assistant. Non-custodial by design —
-              intent, simulation, KeeperHub relay, audit.
+              The intent broker for KeeperHub. Describe a goal — Sixa discovers listings,
+              selects the best fit, settles x402, executes, and verifies. Non-custodial by design.
             </p>
             <div className="flex items-center gap-2.5 pt-1">
               <a

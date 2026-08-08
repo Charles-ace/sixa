@@ -7,28 +7,32 @@ import { cn } from '@/lib/utils';
 
 const faqs = [
   {
+    q: 'What is an intent broker?',
+    a: 'Sixa brokers your goals against the live KeeperHub marketplace: it searches for listings that match your intent, selects the best fit within your budget cap, settles the x402 payment in USDC, executes the job, and independently verifies the result against KeeperHub\u2019s own execution status. Every step lands in your audit trail.',
+  },
+  {
     q: 'Can Sixa take my money?',
-    a: 'No. Sixa prepares and simulates transactions — your wallet signs every broadcast. The execution relay never holds keys and has no path to move funds without your signature. If the relay disappears, your assets stay in your wallet, untouched.',
+    a: 'No. The broker works inside a budget cap you set per job, payments are quoted up-front in USDC, and the execution layer never holds keys. If a relay disappears, your assets stay in your wallet, untouched.',
   },
   {
     q: 'What happens if you disappear?',
-    a: 'Nothing to your funds. The assistant is a browser app and the relay is stateless. If both vanish, your balances remain on-chain exactly as they are. The audit trail is stored locally and can be exported.',
+    a: 'Nothing to your funds. The broker is a browser app and KeeperHub is a stateless relay. If both vanish, your balances remain on-chain exactly as they are, and your audit trail can be exported.',
   },
   {
     q: 'What does it cost?',
-    a: 'The assistant is free. You pay the standard gas fee for each transaction, estimated up-front in the preview panel — typically under a dollar for swaps. When KeeperHub live routing is enabled, pricing follows their relay fee schedule.',
+    a: 'Marketplace listings are quoted per call in USDC — you set a budget cap and the broker only selects listings inside it. The assistant itself is free. On-chain transactions carry the standard gas fee, estimated up-front.',
   },
   {
     q: 'What is a keeper?',
-    a: 'In Sixa\u2019s architecture, a keeper is the execution layer — KeeperHub — that takes your signed, simulated transaction and broadcasts it with smart gas selection and private routing. It can execute. It cannot alter the transaction or redirect where assets settle.',
+    a: 'A keeper is a service listing on the KeeperHub marketplace that fulfills a job — for a price, executed on-chain. Sixa verifies the outcome against KeeperHub\u2019s execution status before marking a job complete.',
   },
   {
-    q: 'Do I need a wallet to try it?',
-    a: 'The chat works without one — the AI still parses intent and simulates transactions. To execute, you connect an EVM wallet. MetaMask is supported today, with more wallets coming.',
+    q: 'Do I need to sign up or connect a wallet to try it?',
+    a: 'Neither. The broker runs as a guest with simulated x402 payments so you can watch the full lifecycle — discover, select, pay, execute, verify. Sign in (email or Google) or connect a wallet only when you want real payments and KeeperHub account-scoped execution.',
   },
   {
-    q: 'How does the AI decide what to do?',
-    a: 'Your sentence is parsed by a deterministic intent parser (swap, bridge, stake, portfolio, balance, history), then explained by an LLM. The parsed intent is always shown to you before any simulation or execution — you approve every step.',
+    q: 'How does the agent decide what to do?',
+    a: 'A deterministic intent parser maps your goal (swap, bridge, stake, snapshot, workflow, and more), then an LLM explains the plan. The parsed intent and the matched listing are always shown before anything moves — you approve every step.',
   },
 ];
 

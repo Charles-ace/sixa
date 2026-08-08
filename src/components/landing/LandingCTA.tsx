@@ -27,9 +27,9 @@ export function LandingCTA() {
           transition={{ duration: 0.5 }}
           className="text-5xl md:text-7xl font-bold tracking-tight leading-[1.02] text-balance mb-6"
         >
-          Ask anything.
+          Describe a goal.
           <br />
-          It executes.
+          It brokers. It executes. It verifies.
         </motion.h2>
         <motion.p
           initial={{ opacity: 0, y: 16 }}
@@ -38,8 +38,9 @@ export function LandingCTA() {
           transition={{ duration: 0.45, delay: 0.1 }}
           className="text-secondary max-w-xl mx-auto leading-relaxed mb-10"
         >
-          Your intent, parsed. Your wallet, signing. KeeperHub, executing. The same
-          boundary on every action — simulated first, audited always.
+          Your goal, brokered. Your budget, respected. A keeper, executing — then
+          independently verified against KeeperHub&apos;s own status. No sign-up wall.
+          No dashboard tax.
         </motion.p>
         <motion.div
           initial={{ opacity: 0, y: 16 }}
@@ -52,7 +53,7 @@ export function LandingCTA() {
             href="/app"
             className="inline-flex items-center gap-2 rounded-full bg-foreground text-background px-7 py-3.5 text-sm font-medium hover:opacity-85 transition-opacity"
           >
-            Launch the app <ArrowUpRight className="w-4 h-4" />
+            Open the broker <ArrowUpRight className="w-4 h-4" />
           </a>
           <Link
             href="/#mechanism"

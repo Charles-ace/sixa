@@ -69,7 +69,7 @@ export function AuthCard() {
           </div>
           <div>
             <p className="text-sm font-medium text-foreground">Sixa account</p>
-            <p className="text-xs text-secondary">Sign in with email or Google</p>
+            <p className="text-xs text-secondary">Optional — sign in, or connect a wallet as a guest</p>
           </div>
         </div>
 

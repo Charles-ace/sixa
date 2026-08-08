@@ -18,7 +18,7 @@ function maskedFor(kid: string): string {
 }
 
 export function AgentApiKeys({ onKeyCreated, onKeyInvalidated }: { onKeyCreated: (key: string) => void; onKeyInvalidated: () => void }) {
-  const { authenticated, account, loading } = useAuth();
+  const { authenticated, loading } = useAuth();
   const [keys, setKeys] = useState<ApiKeyView[]>([]);
   const [name, setName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -129,7 +129,7 @@ export function AgentApiKeys({ onKeyCreated, onKeyInvalidated }: { onKeyCreated:
           <div className="rounded-xl bg-black/[0.04] border border-border p-4">
             <p className="text-xs text-secondary flex items-center gap-1.5">
               <ShieldAlert className="w-3.5 h-3.5" />
-              Keys are tied to your Sixa account. {account?.email ? 'Your session is on this device.' : 'Sign in on the main app page first.'}
+              Keys are tied to your Sixa account. Sign in to manage keys — the broker works without one.
             </p>
           </div>
         )}

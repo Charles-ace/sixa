@@ -4,11 +4,11 @@ import { motion } from 'framer-motion';
 import { MessageSquare, BrainCircuit, PlayCircle, Rocket, ScrollText, Earth } from 'lucide-react';
 
 const pipeline = [
-  { icon: MessageSquare, label: 'Sentence', detail: '"swap 100 USDC to ETH"' },
-  { icon: BrainCircuit, label: 'Intent', detail: 'parsed · swap · 100 USDC → ETH' },
-  { icon: PlayCircle, label: 'Simulate', detail: 'revert-checked · gas $0.42' },
-  { icon: Rocket, label: 'Execute', detail: 'KeeperHub relay · private route' },
-  { icon: ScrollText, label: 'Audit', detail: 'hash logged · searchable' },
+  { icon: MessageSquare, label: 'Goal', detail: '"Aave liquidation snapshot, budget $0.05"' },
+  { icon: BrainCircuit, label: 'Discover', detail: 'live marketplace · 3 listings found' },
+  { icon: PlayCircle, label: 'Select & pay', detail: 'best fit · x402 settled · USDC' },
+  { icon: Rocket, label: 'Execute', detail: 'keeper job run · on-chain' },
+  { icon: ScrollText, label: 'Verify', detail: 'independent check · audit logged' },
 ];
 
 const TRAVEL = ['10%', '30%', '50%', '70%', '90%'];
@@ -24,7 +24,7 @@ export function HowItWorks() {
   return (
     <section id="how-it-works" className="relative py-20 md:py-28 border-t border-black/10">
       <div className="mx-auto max-w-6xl px-6">
-        <p className="section-label">sixa · pipeline</p>
+        <p className="section-label">sixa · broker pipeline</p>
         <motion.h2
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -41,8 +41,8 @@ export function HowItWorks() {
           transition={{ duration: 0.4, delay: 0.1 }}
           className="text-secondary max-w-2xl leading-relaxed mb-12"
         >
-          Every command moves through the same verified path. Each stage is visible
-          in the app — nothing executes silently.
+          Every goal moves through the same verified path. Each stage is visible
+          in the broker console — nothing executes silently.
         </motion.p>
 
         <div className="relative flex flex-col lg:flex-row items-stretch gap-4">

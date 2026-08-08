@@ -4,12 +4,13 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 const stack = [
-  { layer: 'Frontend', file: 'Next.js 15 · App Router', does: 'Chat interface, wallet, portfolio, audit panel', state: 'Live' },
+  { layer: 'Broker', file: 'sixa/broker/pipeline', does: 'Intake → discover listings → select → quote → x402 pay → execute → verify', state: 'Live' },
+  { layer: 'Frontend', file: 'Next.js 16 · App Router', does: 'Broker console, assistant, wallet, portfolio, audit panels', state: 'Live' },
   { layer: 'Wallet Provider', file: 'EIP-1193 · viem', does: 'MetaMask & EVM wallet session, balances, networks', state: 'Live' },
-  { layer: 'LLM', file: 'OpenRouter · llama 3.1', does: 'Conversational agent, explains intents and decisions', state: 'Live' },
+  { layer: 'LLM', file: 'OpenRouter · llama 3.1', does: 'Agent dialogue, explains intents and decisions', state: 'Live' },
   { layer: 'Agent', file: 'sixa/workflows/agent.ts', does: 'Builds monitoring/alert/rebalance strategies from natural language', state: 'Live' },
   { layer: 'Notifications', file: 'KeeperHub channels', does: 'Telegram + Discord alerts attached automatically to workflows', state: 'Live' },
-  { layer: 'Simulation', file: 'keeperhub/providers/', does: 'On-chain dry-run, revert checks, live gas estimate', state: 'Live' },
+  { layer: 'Payments', file: 'keeperhub/providers/', does: 'x402 micro-payments, settled in USDC, simulated or real', state: 'Live' },
   { layer: 'Execution', file: 'keeperhub/providers/', does: 'REST relay, idempotent broadcast, receipt verification, audit log', state: 'Live' },
   { layer: 'Autonomous Mode', file: 'sixa/workflows/decision-engine', does: 'Evaluates conditions on a cron and executes approved strategies unattended', state: 'Live' },
 ];

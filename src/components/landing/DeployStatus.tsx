@@ -9,14 +9,16 @@ const statuses = [
     accent: 'text-success border-success/30 bg-success/5',
     dot: 'bg-success',
     items: [
-      'Wallet connect — MetaMask & EVM',
-      'LLM conversation — OpenRouter',
-      'Agent workflow builder — natural language',
-      'KeeperHub execution — REST · real on-chain relay',
-      'Telegram + Discord alerts — wired by the agent',
+      'Intent Broker — discover → select → pay → execute → verify',
+      'KeeperHub marketplace — live third-party listings',
+      'x402 payments — real, settled in USDC',
+      'Independent verification — KeeperHub execution status checked',
+      'Billable by the job — budget caps, quoted per call',
+      'Agent API — sk_live_ bearer keys for POST /api/agent',
       'Autonomous decision engine — approve once, run unattended',
+      'Wallet connect — MetaMask & EVM',
+      'Telegram + Discord alerts — wired by the agent',
       'Simulation engine — revert-checked',
-      'Gas estimation — live, per-network',
       'Audit trail — searchable',
     ],
   },
@@ -27,6 +29,7 @@ const statuses = [
     items: [
       'Portfolio dashboard — multi-network balances',
       'Cross-chain bridge routing',
+      'Email OTP delivery — requires RESEND_API_KEY',
     ],
   },
   {
@@ -63,8 +66,8 @@ export function DeployStatus() {
           transition={{ duration: 0.4, delay: 0.1 }}
           className="text-secondary max-w-2xl leading-relaxed mb-12"
         >
-          The assistant runs in your browser today. On-chain execution and alerts
-          flow through KeeperHub in the background — no manual wiring needed.
+          The broker runs today — marketplace listings, x402 payments, and verified execution
+          flow through KeeperHub in the background. Sign-in is optional; bring a wallet or stay a guest.
         </motion.p>
 
         <div className="grid md:grid-cols-3 gap-px bg-black/10 border border-black/10 rounded-2xl overflow-hidden">

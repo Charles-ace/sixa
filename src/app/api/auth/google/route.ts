@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { buildGoogleAuthUrl, getGoogleConfig } from '@/lib/auth/google';
+import { buildGoogleAuthUrl, getGoogleConfig, googleRedirectUri } from '@/lib/auth/google';
 import { signToken } from '@/lib/auth/token';
 import { rateLimit, clientIp } from '@/lib/rate-limit';
 
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   }
 
   const origin = new URL(request.url).origin;
-  const redirectUri = `${origin}/api/auth/google/callback`;
+  const redirectUri = googleRedirectUri(origin);
   const state = await signToken({ purpose: 'google-oauth-state', nonce: crypto.randomUUID() });
   const authUrl = buildGoogleAuthUrl(redirectUri, state);
 

@@ -16,6 +16,12 @@ export function getGoogleConfig() {
   return { clientId, clientSecret, configured: Boolean(clientId && clientSecret) };
 }
 
+export function googleRedirectUri(origin: string): string {
+  const fixed = process.env.GOOGLE_REDIRECT_URI?.trim();
+  if (fixed) return fixed;
+  return `${origin}/api/auth/google/callback`;
+}
+
 export function buildGoogleAuthUrl(redirectUri: string, state: string): string {
   const params = new URLSearchParams({
     client_id: process.env.GOOGLE_CLIENT_ID ?? '',

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sparkles, Loader2, AlertCircle } from 'lucide-react';
+import Link from 'next/link';
+import { Sparkles, Loader2, AlertCircle, ArrowUpRight } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { AuthCard } from '@/components/app/AuthCard';
 
@@ -39,7 +40,9 @@ export function SignInCard() {
       </div>
       <h1 className="text-2xl font-bold tracking-tight">Sign in to Sixa</h1>
       <p className="text-secondary mt-2 text-sm leading-relaxed">
-        Your KeeperHub account is derived from your email — portfolios, balances, and execution run under your account. No wallet needed to get started.
+        Signing in is optional — it derives your KeeperHub account from your email so
+        portfolios, balances, and execution run under your account. Prefer to stay anonymous?
+        Close this and use the broker with a wallet as a guest.
       </p>
 
       {authError && (
@@ -58,6 +61,14 @@ export function SignInCard() {
           <AuthCard />
         </div>
       )}
+
+      <Link
+        href="/app"
+        className="mt-5 inline-flex items-center gap-1.5 text-sm text-secondary hover:text-foreground transition-colors"
+      >
+        Skip sign-in — go to the broker as a guest
+        <ArrowUpRight className="w-3.5 h-3.5" />
+      </Link>
     </div>
   );
 }

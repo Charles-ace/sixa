@@ -5,19 +5,19 @@ import { ArrowUpRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const commands = [
+  { text: 'Aave liquidation snapshot for 0x48f…, budget $0.05', desc: 'Brokered on KeeperHub listings' },
   { text: 'swap 100 USDC → ETH', desc: 'Best-route token swaps' },
   { text: 'bridge 500 USDC → Base', desc: 'Cross-chain moves (beta)' },
   { text: 'stake my ETH', desc: 'Staking, protocol selected for you' },
-  { text: 'show my portfolio', desc: 'Live balances across networks' },
-  { text: 'how much ETH do I have?', desc: 'Instant balance answers' },
-  { text: 'what did I execute recently?', desc: 'Audit trail, one prompt' },
+  { text: 'stablecoin yield comparison', desc: 'Marketplace jobs, quoted in USDC' },
+  { text: 'watch my portfolio, alert me if it drops 20%', desc: 'Autonomous workflows, wired by the agent' },
 ];
 
 export function CommandsShowcase() {
   return (
     <section id="commands" className="relative py-20 md:py-28 border-t border-black/10">
       <div className="mx-auto max-w-6xl px-6">
-        <p className="section-label">sixa · commands</p>
+        <p className="section-label">sixa · goals</p>
         <motion.h2
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -25,7 +25,7 @@ export function CommandsShowcase() {
           transition={{ duration: 0.5 }}
           className="text-4xl md:text-6xl font-bold tracking-tight text-balance mb-5"
         >
-          How you use Sixa.
+          What you can broker.
         </motion.h2>
         <motion.p
           initial={{ opacity: 0, y: 16 }}
@@ -34,9 +34,9 @@ export function CommandsShowcase() {
           transition={{ duration: 0.4, delay: 0.1 }}
           className="text-secondary max-w-2xl leading-relaxed mb-12"
         >
-          Everything a DeFi dashboard can do — expressed as language. The parser maps
-          each sentence to an intent, and the preview shows you exactly what it understood
-          before anything moves.
+          Everything a DeFi dashboard can do — expressed as a goal with a budget.
+          Sixa brokers it against the live KeeperHub marketplace and shows you the
+          full lifecycle before anything moves.
         </motion.p>
 
         <div className="rounded-2xl border border-black/10 bg-white divide-y divide-black/[0.06] overflow-hidden">

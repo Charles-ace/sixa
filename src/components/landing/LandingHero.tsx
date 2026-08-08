@@ -59,11 +59,16 @@ export function LandingHero() {
             >
               <span className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-3.5 py-1.5 text-xs font-mono text-secondary">
                 <span className="w-1.5 h-1.5 rounded-full bg-success" />
-                sixa · AI on-chain execution · keeperhub
+                sixa · intent broker · keeperhub marketplace
               </span>
             </motion.div>
 
-            <LetterReveal className="mb-7" />
+            <LetterReveal
+              className="mb-7"
+              phraseTop="Describe a goal."
+              words={['discover listings', 'select the best', 'settle x402', 'execute', 'verify']}
+              phraseBottom="It executes."
+            />
 
             <motion.p
               initial={{ opacity: 0, y: 14 }}
@@ -71,9 +76,9 @@ export function LandingHero() {
               transition={{ duration: 0.5, delay: 0.15 }}
               className="text-lg text-secondary max-w-xl leading-relaxed mb-9"
             >
-              Sixa is an AI agent that parses plain-language requests, simulates the
-              transaction, and executes through KeeperHub. No dashboards. No protocol
-              hopscotch. One sentence in, one signed transaction out.
+              Describe a goal. Sixa searches the live KeeperHub marketplace, picks the listing
+              that fits your budget, settles the x402 payment, executes the job, and verifies the
+              outcome — independently, end to end. One sentence in, a verified result out.
             </motion.p>
 
             <motion.div
@@ -87,7 +92,7 @@ export function LandingHero() {
                 className="gap-2"
                 onClick={() => router.push('/app')}
               >
-                Launch the app
+                Open the broker
                 <ArrowUpRight className="w-4 h-4" />
               </Button>
               <Button
@@ -146,7 +151,7 @@ export function LandingHero() {
                     height={20}
                     className="w-5 h-5"
                   />
-                  sixa · chat
+                  sixa · broker
                 </span>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-black/5 text-foreground border border-black/10 flex items-center gap-1.5">
                   <motion.span
@@ -154,7 +159,7 @@ export function LandingHero() {
                     animate={{ opacity: [1, 0.35, 1], scale: [1, 1.35, 1] }}
                     transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
                   />
-                  keeperhub · live
+                  keeperhub marketplace · live
                 </span>
               </motion.div>
 
@@ -166,7 +171,7 @@ export function LandingHero() {
                   className="flex justify-end"
                 >
                   <div className="max-w-[85%] rounded-2xl rounded-br-md bg-foreground text-background px-4 py-2.5 text-sm">
-                    swap 100 USDC to ETH
+                    Aave liquidation snapshot for 0x48f… on Base, budget $0.05
                   </div>
                 </motion.div>
 
@@ -179,27 +184,31 @@ export function LandingHero() {
                   {[
                     <p key="h" className="flex items-center gap-1.5 text-secondary">
                       <Sparkles className="w-3 h-3" />
-                      intent parsed
+                      broker job dispatched
                     </p>,
                     <p key="a" className="flex items-start gap-2">
                       <span className="text-success">✓</span>
-                      swap · 100 USDC → ETH · best route
+                      discovered 3 live listings
                     </p>,
                     <p key="b" className="flex items-start gap-2">
                       <span className="text-success">✓</span>
-                      simulated · 0 reverts · gas $0.42
+                      selected checked-transfer-g63s · $0.04
                     </p>,
                     <p key="c" className="flex items-start gap-2">
                       <span className="text-success">✓</span>
-                      executed via keeperhub
+                      x402 paid · 0.05 USDC
                     </p>,
-                    <p key="d" className="text-secondary">0x3f9a…c21e · audit logged</p>,
+                    <p key="d" className="flex items-start gap-2">
+                      <span className="text-success">✓</span>
+                      executed · independently verified
+                    </p>,
+                    <p key="e" className="text-secondary">audit logged · searchable</p>,
                   ].map((line, i) => (
                     <motion.div
                       key={i}
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.3, delay: 1.05 + i * 0.16, ease: 'easeOut' }}
+                      transition={{ duration: 0.3, delay: 1.05 + i * 0.14, ease: 'easeOut' }}
                     >
                       {line}
                     </motion.div>
@@ -210,11 +219,11 @@ export function LandingHero() {
               <motion.div
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 1.95 }}
+                transition={{ duration: 0.4, delay: 2.0 }}
                 className="px-4 pb-4 flex items-center gap-2"
               >
                 <div className="flex-1 rounded-full border border-black/10 bg-background/60 px-4 py-2.5 text-sm text-muted flex items-center gap-1">
-                  ask anything, privately…
+                  describe a goal, set a budget…
                   <motion.span
                     className="inline-block w-[5px] h-[13px] rounded-full bg-foreground/60"
                     animate={{ opacity: [1, 0, 1] }}
@@ -224,7 +233,7 @@ export function LandingHero() {
                 <motion.span
                   initial={{ opacity: 0, scale: 0.5 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  transition={{ type: 'spring', stiffness: 260, damping: 18, delay: 2.1 }}
+                  transition={{ type: 'spring', stiffness: 260, damping: 18, delay: 2.15 }}
                   className="w-8 h-8 rounded-full bg-foreground text-background flex items-center justify-center flex-shrink-0"
                 >
                   <ArrowUpRight className="w-4 h-4" />
@@ -234,9 +243,9 @@ export function LandingHero() {
 
             <div className="mt-4 px-1 flex items-center justify-between">
               <p className="text-[11px] font-mono text-muted">
-                autopilot · round-up +$0.73 · DCA $50/w
+                live listings · x402 settled · verified
               </p>
-              <p className="text-[11px] font-mono text-muted">dip −3% → buy</p>
+              <p className="text-[11px] font-mono text-muted">budget cap · audit trail</p>
             </div>
             </motion.div>
           </motion.div>

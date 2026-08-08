@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { exchangeGoogleCode, getGoogleConfig } from '@/lib/auth/google';
+import { exchangeGoogleCode, getGoogleConfig, googleRedirectUri } from '@/lib/auth/google';
 import { verifyToken } from '@/lib/auth/token';
 import { createSessionCookie } from '@/lib/auth/session';
 import { resolveAccount } from '@/lib/auth/account';
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const profile = await exchangeGoogleCode(code, `${origin}/api/auth/google/callback`);
+    const profile = await exchangeGoogleCode(code, googleRedirectUri(origin));
 
     const account = await resolveAccount({
       provider: 'google',

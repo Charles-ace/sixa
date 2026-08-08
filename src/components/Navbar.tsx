@@ -11,8 +11,8 @@ import { ScrollProgress } from '@/components/ScrollProgress';
 import { cn } from '@/lib/utils';
 
 const NAV_LINKS = [
-  { href: '#commands', label: 'Commands' },
-  { href: '#how-it-works', label: 'How it works' },
+  { href: '#commands', label: 'Goals' },
+  { href: '#how-it-works', label: 'Pipeline' },
   { href: '#execution', label: 'Execution' },
   { href: '#faq', label: 'FAQ' },
 ];
@@ -22,7 +22,13 @@ export function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
-  const isApp = pathname === '/app';
+  const isApp = pathname.startsWith('/app');
+
+  const APP_TABS = [
+    { href: '/app', label: 'Broker' },
+    { href: '/app/chat', label: 'Chat' },
+    { href: '/app/agent-api', label: 'Agent API' },
+  ] as const;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -79,18 +85,34 @@ export function Navbar() {
               ))}
             </div>
 
-            <div className="hidden md:flex items-center gap-2">
+            <div className="hidden md:flex items-center gap-1.5">
               {isApp ? (
-                <Button variant="ghost" size="sm" onClick={() => window.history.length > 1 ? router.back() : router.push('/')}>
-                  Back to home
-                </Button>
+                <>
+                  {APP_TABS.map((tab) => (
+                    <Link
+                      key={tab.href}
+                      href={tab.href}
+                      className={cn(
+                        'px-3 py-1.5 rounded-full text-[13px] transition-colors',
+                        pathname === tab.href || (tab.href === '/app' && pathname === '/app/broker')
+                          ? 'bg-black/[0.06] text-foreground font-medium'
+                          : 'text-secondary hover:text-foreground'
+                      )}
+                    >
+                      {tab.label}
+                    </Link>
+                  ))}
+                  <Button variant="ghost" size="sm" onClick={() => router.push('/')}>
+                    Back to home
+                  </Button>
+                </>
               ) : (
                 <>
                   <Button variant="ghost" size="sm" onClick={() => document.getElementById('execution')?.scrollIntoView({ behavior: 'smooth' })}>
                     Watch it work
                   </Button>
                   <Button size="sm" className="gap-1.5" onClick={() => router.push('/app')}>
-                    Launch app
+                    Open the broker
                     <ArrowUpRight className="w-3.5 h-3.5" />
                   </Button>
                 </>
@@ -128,13 +150,25 @@ export function Navbar() {
                   ))}
                   <div className="pt-2 pb-1 flex flex-col gap-2">
                     {isApp ? (
-                      <Button variant="secondary" className="w-full justify-center" onClick={() => { router.push('/'); setIsMobileMenuOpen(false); }}>
-                        Back to home
-                      </Button>
+                      <>
+                        {APP_TABS.map((tab) => (
+                          <Link
+                            key={tab.href}
+                            href={tab.href}
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className="block px-2 py-2.5 text-sm text-secondary hover:text-foreground rounded-md transition-colors"
+                          >
+                            {tab.label}
+                          </Link>
+                        ))}
+                        <Button variant="secondary" className="w-full justify-center" onClick={() => { router.push('/'); setIsMobileMenuOpen(false); }}>
+                          Back to home
+                        </Button>
+                      </>
                     ) : (
                       <>
                         <Button className="w-full justify-center gap-1.5" onClick={() => { router.push('/app'); setIsMobileMenuOpen(false); }}>
-                          Launch app <ArrowUpRight className="w-3.5 h-3.5" />
+                          Open the broker <ArrowUpRight className="w-3.5 h-3.5" />
                         </Button>
                         <Button variant="secondary" className="w-full justify-center" onClick={() => { document.getElementById('execution')?.scrollIntoView({ behavior: 'smooth' }); setIsMobileMenuOpen(false); }}>
                           Watch it work

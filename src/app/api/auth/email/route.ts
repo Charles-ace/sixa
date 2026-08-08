@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     let devCode: string | undefined;
     if (config.configured) {
       await sendOtpEmail(email, code);
-    } else if (process.env.NODE_ENV !== 'production') {
+    } else if (process.env.NODE_ENV !== 'production' || process.env.ALLOW_DEV_OTP === 'true') {
       devCode = code;
     } else {
       return NextResponse.json(
