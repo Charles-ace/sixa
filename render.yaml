@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: sixa-broker
+    runtime: docker
+    repo: https://github.com/Charles-ace/sixa
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: frankfurt
+    healthCheckPath: /
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: NEXT_PUBLIC_SITE_URL
+        value: https://sixa-broker.onrender.com
+      - key: NEXT_PUBLIC_SITE_NAME
+        value: Sixa
+      - key: KEEPERHUB_API_KEY
+        sync: false
+      - key: KEEPERHUB_ENDPOINT
+        value: https://app.keeperhub.com
+      - key: KEEPERHUB_TRANSPORT
+        value: rest
+      - key: KEEPERHUB_CHAIN_ID
+        value: 84532
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: AUTH_SECRET
+        sync: false
+      - key: SIXA_DECISION_SECRET
+        sync: false
+      - key: BROKER_PAYER_PRIVATE_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false

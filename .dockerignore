@@ -1,0 +1,13 @@
+node_modules
+.next
+.git
+.data
+.env
+.env.local
+.env.*.local
+e2e-server.log
+server.log
+dev-*.log
+*.tsbuildinfo
+ready.md
+README.md

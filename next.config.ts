@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,
+  output: 'standalone',
   experimental: {
     optimizePackageImports: ['framer-motion', 'lucide-react', '@radix-ui/react-icons'],
   },
