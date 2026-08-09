@@ -3,7 +3,7 @@ import { waitForTransactionReceipt } from 'viem/actions';
 import { privateKeyToAccount } from 'viem/accounts';
 import { base } from 'viem/chains';
 import { ProviderError } from '@/lib/keeperhub/providers/http';
-import type { OnChainReceipt, PaymentQuote, PaymentMode, PaymentRecord } from './types';
+import { assetDecimals, isNativeAsset, type OnChainReceipt, type PaymentQuote, type PaymentMode, type PaymentRecord } from './types';
 
 export const USDC_BASE = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
 export const USDC_DECIMALS = 6;
@@ -115,27 +115,27 @@ export async function payX402(quote: PaymentQuote, mode: PaymentMode): Promise<P
     throw new ProviderError({ code: 'invalid_pay_to', message: 'The x402 payTo address is invalid.' });
   }
 
-  if (!/^0x[a-fA-F0-9]{40}$/.test(quote.asset)) {
+  // Native quotes (eth / zero address) pay with a plain value transfer — a
+  // single ETH balance then covers BOTH the payment and the gas for it.
+  const native = isNativeAsset(quote.asset);
+  if (!native && !/^0x[a-fA-F0-9]{40}$/.test(quote.asset)) {
     throw new ProviderError({ code: 'invalid_asset', message: 'The x402 asset address is invalid.' });
   }
 
-  // Idempotency: exact amount to a fixed payTo means a completed transfer
-  // can be re-sent harmlessly only if the previous one failed. Use a
-  // deterministic idempotency key derived from quote to avoid double pay.
-  const idempotencyKey = `x402-${quote.network}-${quote.asset.slice(0, 8)}-${to.slice(0, 8)}-${quote.amountUnits}`;
-  void idempotencyKey;
-
-  const txHash = await client.writeContract({
-    address: quote.asset as `0x${string}`,
-    abi: USDC_ABI,
-    functionName: 'transfer',
-    args: [to, amount],
-    chain,
-  });
+  const txHash = native
+    ? await client.sendTransaction({ to, value: amount, chain })
+    : await client.writeContract({
+        address: quote.asset as `0x${string}`,
+        abi: USDC_ABI,
+        functionName: 'transfer',
+        args: [to, amount],
+        chain,
+      });
 
   const receipt = await confirmOnChainReceipt({
     txHash,
-    asset: quote.asset,
+    asset: native ? 'native' : quote.asset,
+    native,
     networkName: chainId === 1 ? 'ethereum' : 'base',
     expectedAmountUnits: quote.amountUnits,
     expectedRecipient: to,
@@ -159,6 +159,7 @@ export async function payX402(quote: PaymentQuote, mode: PaymentMode): Promise<P
 export interface ConfirmReceiptInput {
   txHash: `0x${string}`;
   asset: string;
+  native?: boolean;
   expectedAmountUnits?: string;
   expectedRecipient?: string;
   publicClient: ReturnType<typeof basePublicClient>;
@@ -173,7 +174,7 @@ export interface ConfirmReceiptInput {
  * so a "real" payment can never silently masquerade as settled.
  */
 export async function confirmOnChainReceipt(opts: ConfirmReceiptInput): Promise<OnChainReceipt> {
-  const { txHash, asset, expectedAmountUnits, expectedRecipient, publicClient, payer, networkName = 'base' } = opts;
+  const { txHash, asset, native = false, expectedAmountUnits, expectedRecipient, publicClient, payer, networkName = 'base' } = opts;
 
   let receipt;
   try {
@@ -194,21 +195,33 @@ export async function confirmOnChainReceipt(opts: ConfirmReceiptInput): Promise<
     throw new ProviderError({
       code: 'payment_reverted',
       message: `Transaction ${txHash} reverted on-chain.`,
-      hint: 'The payer wallet likely lacks USDC balance for this transfer.',
+      hint: native ? 'The payer wallet likely lacks ETH balance for this native payment.' : 'The payer wallet likely lacks USDC balance for this transfer.',
     });
   }
 
   let amountUnits: bigint | null = null;
   let recipient = '';
-  const log = receipt.logs.find((l) => l.address.toLowerCase() === asset.toLowerCase() && l.topics[0] === TRANSFER_TOPIC);
-  if (log) {
+  if (native) {
+    // Native payment — the value moved is on the transaction itself, not a
+    // token Transfer event.
     try {
-      const decoded = decodeEventLog({ abi: TRANSFER_EVENT, data: log.data, topics: log.topics });
-      const args = decoded.args as { from: `0x${string}`; to: `0x${string}`; value: bigint };
-      amountUnits = args.value;
-      recipient = args.to.toLowerCase();
+      const tx = await publicClient.getTransaction({ hash: txHash });
+      amountUnits = tx.value;
+      recipient = tx.to ? tx.to.toLowerCase() : '';
     } catch {
-      // undecodable log — the mismatch checks below will flag it
+      // tx lookup failed — the mismatch checks below will flag it
+    }
+  } else {
+    const log = receipt.logs.find((l) => l.address.toLowerCase() === asset.toLowerCase() && l.topics[0] === TRANSFER_TOPIC);
+    if (log) {
+      try {
+        const decoded = decodeEventLog({ abi: TRANSFER_EVENT, data: log.data, topics: log.topics });
+        const args = decoded.args as { from: `0x${string}`; to: `0x${string}`; value: bigint };
+        amountUnits = args.value;
+        recipient = args.to.toLowerCase();
+      } catch {
+        // undecodable log — the mismatch checks below will flag it
+      }
     }
   }
 
@@ -223,10 +236,10 @@ export async function confirmOnChainReceipt(opts: ConfirmReceiptInput): Promise<
     status: 'success',
     from: payer.toLowerCase(),
     recipient,
-    asset: asset.toLowerCase(),
+    asset: native ? 'native' : asset.toLowerCase(),
     network: networkName,
     amountUnits: amountUnits?.toString() ?? '0',
-    amountUsdc: amountUnits ? Number(amountUnits) / 10 ** USDC_DECIMALS : 0,
+    amountUsdc: amountUnits ? Number(amountUnits) / 10 ** assetDecimals(asset) : 0,
     blockNumber: Number(receipt.blockNumber),
     blockHash: receipt.blockHash ?? txHash,
     gasUsed: receipt.gasUsed?.toString() ?? '0',

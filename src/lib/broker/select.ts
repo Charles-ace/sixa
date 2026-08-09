@@ -54,6 +54,20 @@ function scoreFor(candidate: ListingCandidate, spec: JobSpec): number {
   return score;
 }
 
+/**
+ * Best keyword-match score across the candidates. Used to decide whether a
+ * listing is actually relevant to the intent — below the threshold the
+ * broker should build a workflow instead of trying unrelated listings.
+ */
+export function bestMatchScore(spec: JobSpec, candidates: ListingCandidate[]): number {
+  if (candidates.length === 0) return 0;
+  let best = -Infinity;
+  for (const candidate of candidates) {
+    best = Math.max(best, scoreFor(candidate, spec));
+  }
+  return best;
+}
+
 function matchedTokensFor(candidate: ListingCandidate, spec: JobSpec): string[] {
   const goalTokens = normalizeTokens(`${spec.goal} ${spec.query}`);
   const tokensIn = new Set([...normalizeTokens(candidate.name), ...normalizeTokens(candidate.description)]);

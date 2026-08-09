@@ -58,6 +58,22 @@ export interface PaymentQuote {
   description: string;
 }
 
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+
+/**
+ * x402 quotes quote either an ERC20 token (an address) or the chain's
+ * native token ('native' or the zero address). Native quotes let a single
+ * gas balance cover payment + gas.
+ */
+export function isNativeAsset(asset: string): boolean {
+  const a = (asset ?? '').trim().toLowerCase();
+  return a === 'native' || a === 'eth' || a === ZERO_ADDRESS;
+}
+
+export function assetDecimals(asset: string): number {
+  return isNativeAsset(asset) ? 18 : 6;
+}
+
 export interface ReceiptCheck {
   amount: boolean;
   recipient: boolean;

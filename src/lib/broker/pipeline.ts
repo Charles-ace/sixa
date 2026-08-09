@@ -1,6 +1,6 @@
 import { BrokerMcpClient } from './client';
 import { discover } from './discover';
-import { select } from './select';
+import { select, bestMatchScore } from './select';
 import { intake } from './intake';
 import { payX402, payerMode } from './pay';
 import { verifyExecution } from './verify';
@@ -16,6 +16,7 @@ for (const job of loadJobs()) {
   jobs.set(job.id, job);
 }
 const MAX_JOBS = 50;
+const MIN_MATCH_SCORE = 3;
 
 export const brokerMcpClient = new BrokerMcpClient();
 
@@ -230,6 +231,18 @@ async function executePipeline(job: BrokerJob): Promise<void> {
     return;
   }
 
+  const bestScore = bestMatchScore(job.spec, candidates);
+  if (!job.forcedSlug && bestScore < MIN_MATCH_SCORE) {
+    pushAudit(job, 'candidate_found', `Best matching listing scored ${bestScore.toFixed(1)} of ${MIN_MATCH_SCORE} — below the relevance threshold. Generating a workflow instead of forcing an unrelated listing.`, {
+      bestScore,
+      threshold: MIN_MATCH_SCORE,
+      slugs: candidates.slice(0, 8).map((c) => c.slug),
+    });
+    pushAudit(job, 'fallback_generation', `No marketplace listing genuinely matches the intent (best score ${bestScore.toFixed(1)}); generating a workflow as last resort.`);
+    await attemptGenerationFallback(job, client);
+    return;
+  }
+
   setStatus(job, 'selecting');
   const selection = select(job.spec, candidates);
   job.selected = selection.selected;
@@ -425,13 +438,30 @@ async function attemptGenerationFallback(job: BrokerJob, client: BrokerMcpClient
   const result = await generateAndRun(client, job.spec.goal, normalizeParams(job.spec.params, null));
   if (result.execution.completed) {
     job.execution = result.execution;
-    pushAudit(job, 'verification_passed', 'Generated workflow verified via KeeperHub execution status.', {
-      executionId: result.execution.executionId,
-      status: result.execution.status,
-      workflowId: result.workflowId,
-    });
-    setStatus(job, 'completed');
-    pushAudit(job, 'job_completed', 'Job completed via generated fallback workflow.', { workflowId: result.workflowId, name: result.name });
+    if (result.buildPath === 'template') {
+      pushAudit(job, 'verification_passed', 'Workflow built from a marketplace template; execution launched in KeeperHub (manual trigger — confirm in the KeeperHub dashboard).', {
+        executionId: result.execution.executionId,
+        workflowId: result.workflowId,
+      });
+      setStatus(job, 'completed');
+      pushAudit(job, 'job_completed', 'Job completed — the agent built a new workflow from a template.', {
+        workflowId: result.workflowId,
+        name: result.name,
+        buildPath: result.buildPath,
+      });
+    } else {
+      pushAudit(job, 'verification_passed', 'Generated workflow verified via KeeperHub execution status.', {
+        executionId: result.execution.executionId,
+        status: result.execution.status,
+        workflowId: result.workflowId,
+      });
+      setStatus(job, 'completed');
+      pushAudit(job, 'job_completed', 'Job completed via generated fallback workflow.', {
+        workflowId: result.workflowId,
+        name: result.name,
+        buildPath: result.buildPath,
+      });
+    }
     job.report = buildSuccessReport(job);
     storeJob(job);
     return;
@@ -460,8 +490,7 @@ function buildSuccessReport(job: BrokerJob): string {
     `Job ${job.id} completed.`,
     '',
     `Goal: ${job.spec.goal}`,
-    `Listing: ${job.selected?.name} (${job.selected?.slug})`,
-    `Price: $${job.selected?.priceUsdcPerCall.toFixed(2)}/call`,
+    ...(job.selected ? [`Listing: ${job.selected.name} (${job.selected.slug})`, `Price: $${job.selected.priceUsdcPerCall.toFixed(2)}/call`] : []),
     ...(job.payment ? [`Payment: ${job.payment.mode === 'simulated' ? 'simulated' : `real (tx ${job.payment.txHash})`} — $${job.payment.amountUsdc.toFixed(2)} ${job.payment.asset}`] : []),
     ...(job.payment?.receipt
       ? [
@@ -471,8 +500,7 @@ function buildSuccessReport(job: BrokerJob): string {
         ]
       : []),
     ...(job.execution?.executionId ? [`Execution id: ${job.execution.executionId}`] : []),
-    `Status: ${job.execution?.status ?? 'pending'}`,
-    `Verified: ${job.execution?.verified ? 'yes (KeeperHub execution status)' : 'no'}`,
+    ...(job.execution?.verified ? [`Verified: yes (KeeperHub execution status)`] : [`Verified: execution launched — pending manual trigger on KeeperHub`]),
   ];
   return lines.join('\n');
 }

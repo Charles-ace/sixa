@@ -1,5 +1,5 @@
 import { ProviderError, parseTextContentResult } from '@/lib/keeperhub/providers/http';
-import type { ExAccepts, ListingCandidate, PaymentQuote } from './types';
+import { assetDecimals, type ExAccepts, type ListingCandidate, type PaymentQuote } from './types';
 
 const DEFAULT_MCP_URL = 'https://app.keeperhub.com/mcp';
 const PROTOCOL_VERSION = '2025-06-18';
@@ -315,6 +315,13 @@ export class BrokerMcpClient {
     await this.ensureInitialized();
     try {
       const generated = await this.callTool('ai_generate_workflow', { prompt: goal });
+      if (generated.isError) {
+        throw new ProviderError({
+          code: 'generation_disabled',
+          message: generated.text.slice(0, 300),
+          hint: 'KeeperHub AI workflow generation is disabled for this organization. Enable "AI Prompt" in KeeperHub, or the broker falls back to deploying a matching template.',
+        });
+      }
       const genRaw = parseJsonRecord(generated.text) ?? {};
       const gen = (genRaw.workflow && typeof genRaw.workflow === 'object' ? genRaw.workflow : genRaw) as Record<string, unknown>;
       const nodes = coerceArray(gen.nodes);
@@ -347,6 +354,44 @@ export class BrokerMcpClient {
         message: `Fallback generation failed: ${error instanceof Error ? error.message : 'unknown error'}`,
       });
     }
+  }
+
+  /**
+   * Deploy a pre-built workflow template as a new workflow in the
+   * organization. Used when AI generation is disabled on the account.
+   */
+  async searchWorkflowTemplates(query: string, limit = 5): Promise<Array<{ id: string; name: string }>> {
+    this.requireConfigured();
+    await this.ensureInitialized();
+    const parsed = await this.callTool('search_templates', { query, ...(limit > 0 ? { limit } : {}) });
+    if (parsed.isError) {
+      throw new ProviderError({ code: 'template_search_failed', message: parsed.text.slice(0, 300) });
+    }
+    const data = parseJsonPayload(parsed.text);
+    const arr = Array.isArray(data)
+      ? data
+      : Array.isArray((data as { templates?: unknown[] } | null)?.templates)
+        ? (data as { templates: unknown[] }).templates
+        : [];
+    return arr
+      .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
+      .map((item) => ({ id: String(item.id ?? ''), name: String(item.name ?? 'Template') }))
+      .filter((t) => t.id.length > 0);
+  }
+
+  async deployWorkflowTemplate(templateId: string): Promise<{ workflowId: string; name: string }> {
+    this.requireConfigured();
+    await this.ensureInitialized();
+    const parsed = await this.callTool('deploy_template', { templateId });
+    if (parsed.isError) {
+      throw new ProviderError({ code: 'template_deploy_failed', message: parsed.text.slice(0, 300) });
+    }
+    const created = parseJsonRecord(parsed.text) ?? {};
+    const workflowId = stringField(created, 'id') ?? stringField(created, 'workflowId');
+    if (!workflowId) {
+      throw new ProviderError({ code: 'template_deploy_failed', message: 'deploy_template did not return a workflow id.', hint: parsed.text.slice(0, 300) });
+    }
+    return { workflowId, name: String(created.name ?? 'Deployed template') };
   }
 }
 
@@ -429,7 +474,7 @@ function parsePaymentQuote(text: string): PaymentQuote | null {
     asset: accepts.asset ?? '',
     network: accepts.network ?? '',
     amountUnits: accepts.amount ?? '0',
-    amountUsdc: Number(accepts.amount ?? 0) / 1_000_000,
+    amountUsdc: Number(accepts.amount ?? 0) / 10 ** assetDecimals(accepts.asset ?? ''),
     payTo: accepts.payTo ?? '',
     maxTimeoutSeconds: Number(accepts.maxTimeoutSeconds ?? 0),
     resourceUrl: String(resource.url ?? ''),
