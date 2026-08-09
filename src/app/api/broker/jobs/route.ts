@@ -4,6 +4,8 @@ import { rateLimit, clientIp } from '@/lib/rate-limit';
 import { readSession } from '@/lib/auth/session';
 import type { PaymentMode } from '@/lib/broker/types';
 
+export const maxDuration = 60;
+
 export async function POST(request: NextRequest) {
   const ip = clientIp(request);
   const limiter = rateLimit(`broker:${ip}`, { limit: 10, windowMs: 60 * 1000 });
