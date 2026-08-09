@@ -224,6 +224,12 @@ async function executePipeline(job: BrokerJob): Promise<void> {
   job.candidates = candidates;
   pushAudit(job, 'candidate_found', `Found ${candidates.length} candidates.`, { slugs: candidates.slice(0, 8).map((c) => c.slug) });
 
+  if (candidates.length === 0) {
+    pushAudit(job, 'fallback_generation', 'No marketplace listing matched the intent — generating a workflow instead.', { query: job.spec.query });
+    await attemptGenerationFallback(job, client);
+    return;
+  }
+
   setStatus(job, 'selecting');
   const selection = select(job.spec, candidates);
   job.selected = selection.selected;
