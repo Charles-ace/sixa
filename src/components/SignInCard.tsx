@@ -1,16 +1,24 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Sparkles, Loader2, AlertCircle, ArrowUpRight } from 'lucide-react';
+import { Sparkles, Loader2, AlertCircle, ArrowUpRight, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useWallet } from '@/hooks/useWallet';
 import { AuthCard } from '@/components/app/AuthCard';
+import { WalletCard } from '@/components/app/WalletCard';
+import { Button } from '@/components/ui/Button';
 
 export function SignInCard() {
   const { authenticated, account } = useAuth();
   const router = useRouter();
+  const wallet = useWallet();
   const [authError, setAuthError] = useState<string | null>(null);
+  const [guestState, setGuestState] = useState<{ status: 'idle' | 'signing' | 'error'; error: string | null }>({
+    status: 'idle',
+    error: null,
+  });
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -32,6 +40,33 @@ export function SignInCard() {
       return () => clearTimeout(t);
     }
   }, [authenticated, account, router]);
+
+  const continueAsGuest = useCallback(async () => {
+    if (!wallet.address || !window.ethereum) return;
+    setGuestState({ status: 'signing', error: null });
+    try {
+      const address = wallet.address;
+      const issuedAt = new Date().toISOString();
+      const message = `Sixa guest sign-in\nWallet: ${address.toLowerCase()}\nIssued at: ${issuedAt}`;
+      const signature = (await window.ethereum.request({
+        method: 'personal_sign',
+        params: [message, address],
+      })) as string;
+
+      const res = await fetch('/api/auth/wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address, message, signature }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? 'Guest sign-in failed');
+      }
+      router.replace('/app');
+    } catch (err) {
+      setGuestState({ status: 'error', error: err instanceof Error ? err.message : 'Guest sign-in failed' });
+    }
+  }, [router, wallet.address]);
 
   return (
     <div className="text-center mb-8">
@@ -59,6 +94,41 @@ export function SignInCard() {
       ) : (
         <div className="mt-6 text-left">
           <AuthCard />
+
+          <div className="my-5 flex items-center gap-3">
+            <div className="h-px bg-black/10 flex-1" />
+            <span className="text-[11px] uppercase tracking-wider text-secondary">or use your own wallet</span>
+            <div className="h-px bg-black/10 flex-1" />
+          </div>
+
+          <WalletCard
+            wallet={wallet}
+            onConnect={wallet.connect}
+            onDisconnect={wallet.disconnect}
+            onRefresh={() => wallet.address && wallet.refreshPortfolio(wallet.address, wallet.chainId)}
+            compact
+          />
+
+          {wallet.isConnected && wallet.address && (
+            <div className="mt-3 space-y-2">
+              <Button className="w-full gap-2" onClick={continueAsGuest} disabled={guestState.status === 'signing'}>
+                {guestState.status === 'signing' ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Signing…
+                  </>
+                ) : (
+                  <>
+                    Continue to the broker as guest
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </Button>
+              {guestState.status === 'error' && (
+                <p className="text-xs text-error text-center">{guestState.error}</p>
+              )}
+            </div>
+          )}
         </div>
       )}
 
