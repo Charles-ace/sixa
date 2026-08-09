@@ -68,9 +68,9 @@ let remoteCache: { jobs: BrokerJob[]; at: number } | null = null;
 let remoteInFlight: Promise<BrokerJob[]> | null = null;
 let remoteWarned = false;
 
-async function readRemote(): Promise<BrokerJob[]> {
-  if (remoteInFlight) return remoteInFlight;
-  remoteInFlight = (async () => {
+async function readRemote(forceFresh = false): Promise<BrokerJob[]> {
+  if (!forceFresh && remoteInFlight) return remoteInFlight;
+  const fetchPromise = (async () => {
     try {
       const res = await blobGet(REMOTE_PATH, { access: 'public' });
       if (!res || res.statusCode !== 200 || !res.stream) return [];
@@ -84,22 +84,24 @@ async function readRemote(): Promise<BrokerJob[]> {
       }
       return [];
     } finally {
-      remoteInFlight = null;
+      if (remoteInFlight === fetchPromise) remoteInFlight = null;
     }
   })();
-  return remoteInFlight;
+  if (!forceFresh) remoteInFlight = fetchPromise;
+  return fetchPromise;
 }
 
 export async function loadSharedJobs(forceFresh = false): Promise<BrokerJob[]> {
   if (!forceFresh && remoteCache && Date.now() - remoteCache.at < REMOTE_CACHE_TTL_MS) {
     return remoteCache.jobs;
   }
-  const jobs = await readRemote();
+  const jobs = await readRemote(forceFresh);
   remoteCache = { jobs, at: Date.now() };
   return jobs;
 }
 
 async function putSnapshot(jobs: BrokerJob[]): Promise<void> {
+  remoteCache = null;
   await blobPut(REMOTE_PATH, JSON.stringify({ jobs }, null, 0), {
     access: 'public',
     addRandomSuffix: false,
