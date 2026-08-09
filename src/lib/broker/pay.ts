@@ -1,17 +1,32 @@
-import { createWalletClient, http, parseAbi } from 'viem';
+import { createPublicClient, createWalletClient, decodeEventLog, http, parseAbi } from 'viem';
+import { waitForTransactionReceipt } from 'viem/actions';
 import { privateKeyToAccount } from 'viem/accounts';
 import { base } from 'viem/chains';
 import { ProviderError } from '@/lib/keeperhub/providers/http';
-import type { PaymentQuote, PaymentMode, PaymentRecord } from './types';
+import type { OnChainReceipt, PaymentQuote, PaymentMode, PaymentRecord } from './types';
 
 export const USDC_BASE = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
 export const USDC_DECIMALS = 6;
+
+const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 
 const USDC_ABI = parseAbi([
   'function approve(address spender, uint256 amount) returns (bool)',
   'function balanceOf(address owner) view returns (uint256)',
   'function transfer(address to, uint256 amount) returns (bool)',
 ]);
+
+const TRANSFER_EVENT = [
+  {
+    type: 'event',
+    name: 'Transfer',
+    inputs: [
+      { type: 'address', indexed: true, name: 'from' },
+      { type: 'address', indexed: true, name: 'to' },
+      { type: 'uint256', indexed: false, name: 'value' },
+    ],
+  },
+] as const;
 
 export function isPayerConfigured(): boolean {
   return Boolean(process.env.BROKER_PAYER_PRIVATE_KEY);
@@ -42,6 +57,13 @@ function parseUnits(amountUnits: string): bigint {
   } catch {
     return 0n;
   }
+}
+
+export function basePublicClient(rpcUrl?: string) {
+  return createPublicClient({
+    chain: base,
+    transport: http(rpcUrl ?? process.env.BROKER_PAYER_RPC_URL ?? 'https://mainnet.base.org'),
+  });
 }
 
 export async function payX402(quote: PaymentQuote, mode: PaymentMode): Promise<PaymentRecord> {
@@ -81,6 +103,7 @@ export async function payX402(quote: PaymentQuote, mode: PaymentMode): Promise<P
     chain,
     transport: http(rpcUrl),
   });
+  const publicClient = basePublicClient(rpcUrl);
 
   const amount = parseUnits(quote.amountUnits);
   if (amount <= 0n) {
@@ -100,6 +123,8 @@ export async function payX402(quote: PaymentQuote, mode: PaymentMode): Promise<P
   // can be re-sent harmlessly only if the previous one failed. Use a
   // deterministic idempotency key derived from quote to avoid double pay.
   const idempotencyKey = `x402-${quote.network}-${quote.asset.slice(0, 8)}-${to.slice(0, 8)}-${quote.amountUnits}`;
+  void idempotencyKey;
+
   const txHash = await client.writeContract({
     address: quote.asset as `0x${string}`,
     abi: USDC_ABI,
@@ -107,7 +132,16 @@ export async function payX402(quote: PaymentQuote, mode: PaymentMode): Promise<P
     args: [to, amount],
     chain,
   });
-  void idempotencyKey;
+
+  const receipt = await confirmOnChainReceipt({
+    txHash,
+    asset: quote.asset,
+    networkName: chainId === 1 ? 'ethereum' : 'base',
+    expectedAmountUnits: quote.amountUnits,
+    expectedRecipient: to,
+    publicClient,
+    payer: account.address,
+  });
 
   return {
     mode: 'real',
@@ -118,5 +152,87 @@ export async function payX402(quote: PaymentQuote, mode: PaymentMode): Promise<P
     status: 'paid',
     txHash,
     paidAt: new Date().toISOString(),
+    receipt,
+  };
+}
+
+export interface ConfirmReceiptInput {
+  txHash: `0x${string}`;
+  asset: string;
+  expectedAmountUnits?: string;
+  expectedRecipient?: string;
+  publicClient: ReturnType<typeof basePublicClient>;
+  payer: string;
+  networkName?: string;
+}
+
+/**
+ * Waits for a broadcast USDC transfer to mine, decodes its Transfer event,
+ * and returns a provable on-chain receipt. Throws if the transaction never
+ * mines, reverts, or moves an amount/recipient that differs from the quote,
+ * so a "real" payment can never silently masquerade as settled.
+ */
+export async function confirmOnChainReceipt(opts: ConfirmReceiptInput): Promise<OnChainReceipt> {
+  const { txHash, asset, expectedAmountUnits, expectedRecipient, publicClient, payer, networkName = 'base' } = opts;
+
+  let receipt;
+  try {
+    receipt = await waitForTransactionReceipt(publicClient, {
+      hash: txHash,
+      confirmations: 1,
+      timeout: 60_000,
+      pollingInterval: 1_000,
+    });
+  } catch {
+    throw new ProviderError({
+      code: 'payment_unconfirmed',
+      message: `Transaction ${txHash} was broadcast but no receipt arrived in time.`,
+      hint: 'Check that the payer wallet holds enough native gas (ETH) on the destination chain.',
+    });
+  }
+  if (receipt.status !== 'success') {
+    throw new ProviderError({
+      code: 'payment_reverted',
+      message: `Transaction ${txHash} reverted on-chain.`,
+      hint: 'The payer wallet likely lacks USDC balance for this transfer.',
+    });
+  }
+
+  let amountUnits: bigint | null = null;
+  let recipient = '';
+  const log = receipt.logs.find((l) => l.address.toLowerCase() === asset.toLowerCase() && l.topics[0] === TRANSFER_TOPIC);
+  if (log) {
+    try {
+      const decoded = decodeEventLog({ abi: TRANSFER_EVENT, data: log.data, topics: log.topics });
+      const args = decoded.args as { from: `0x${string}`; to: `0x${string}`; value: bigint };
+      amountUnits = args.value;
+      recipient = args.to.toLowerCase();
+    } catch {
+      // undecodable log — the mismatch checks below will flag it
+    }
+  }
+
+  const latest = await publicClient.getBlockNumber().catch(() => receipt.blockNumber + 1n);
+  const matches = {
+    amount: amountUnits !== null && expectedAmountUnits !== undefined && amountUnits === BigInt(expectedAmountUnits),
+    recipient: Boolean(expectedRecipient && recipient && recipient === expectedRecipient.toLowerCase()),
+  };
+
+  return {
+    txHash,
+    status: 'success',
+    from: payer.toLowerCase(),
+    recipient,
+    asset: asset.toLowerCase(),
+    network: networkName,
+    amountUnits: amountUnits?.toString() ?? '0',
+    amountUsdc: amountUnits ? Number(amountUnits) / 10 ** USDC_DECIMALS : 0,
+    blockNumber: Number(receipt.blockNumber),
+    blockHash: receipt.blockHash ?? txHash,
+    gasUsed: receipt.gasUsed?.toString() ?? '0',
+    gasPrice: receipt.effectiveGasPrice?.toString() ?? '0',
+    confirmations: Number(latest - receipt.blockNumber) + 1,
+    matches,
+    verifiedAt: new Date().toISOString(),
   };
 }

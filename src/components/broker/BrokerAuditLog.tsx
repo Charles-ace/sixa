@@ -14,6 +14,9 @@ const EVENT_TONE: Record<string, 'ok' | 'warn' | 'err' | 'info'> = {
   quote_received: 'warn',
   payment_made: 'ok',
   payment_simulated: 'warn',
+  payment_verified: 'ok',
+  payment_unverified: 'err',
+  payment_reverted: 'err',
   execution_requested: 'info',
   execution_polled: 'info',
   execution_completed: 'ok',
@@ -27,22 +30,25 @@ const EVENT_TONE: Record<string, 'ok' | 'warn' | 'err' | 'info'> = {
   job_failed: 'err',
 };
 
-export function BrokerAuditLog({ jobId, refreshKey }: { jobId: string; refreshKey: number }) {
+export function BrokerAuditLog({ jobId }: { jobId: string }) {
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [pinnedToBottom, setPinnedToBottom] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const lastSignature = useRef<string>('');
 
   useEffect(() => {
     let cancelled = false;
     const poll = async () => {
       try {
         const res = await fetch(`/api/broker/jobs/${jobId}/audit`);
+        if (!res.ok) return;
         const data = await res.json();
-        if (!cancelled) {
-          const next = data.audit ?? [];
-          setEvents((prev) =>
-            prev.length === next.length && prev[prev.length - 1]?.id === next[next.length - 1]?.id ? prev : next
-          );
+        const next: AuditEvent[] = Array.isArray(data.audit) ? data.audit : [];
+        if (next.length === 0) return;
+        const signature = next.map((e) => `${e.id}:${e.type}:${e.timestamp}`).join('|');
+        if (!cancelled && signature !== lastSignature.current) {
+          lastSignature.current = signature;
+          setEvents(next);
         }
       } catch {
         // keep polling
@@ -54,7 +60,7 @@ export function BrokerAuditLog({ jobId, refreshKey }: { jobId: string; refreshKe
       cancelled = true;
       clearInterval(id);
     };
-  }, [jobId, refreshKey]);
+  }, [jobId]);
 
   useEffect(() => {
     const el = scrollRef.current;

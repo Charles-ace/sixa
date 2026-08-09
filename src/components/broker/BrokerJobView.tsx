@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { Loader2, ArrowRight, ScrollText } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Loader2, ArrowRight, ScrollText, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { BrokerJob, JobStatus } from '@/lib/broker/types';
 
@@ -29,11 +29,10 @@ const STATUS_LABELS: Record<JobStatus, string> = {
   failed: 'Failed',
 };
 
-const TERMINAL: JobStatus[] = ['completed', 'failed'];
-
-export function BrokerJobView({ jobId, onRefresh, active }: { jobId: string; onRefresh: () => void; active?: boolean }) {
+export function BrokerJobView({ jobId, active }: { jobId: string; active?: boolean }) {
   const [job, setJob] = useState<BrokerJob | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const lastSignature = useRef<string>('');
 
   const poll = useCallback(async () => {
     try {
@@ -43,14 +42,17 @@ export function BrokerJobView({ jobId, onRefresh, active }: { jobId: string; onR
         return;
       }
       const data = await res.json();
-      setJob(data.job);
-      if (data.job && TERMINAL.includes(data.job.status)) {
-        onRefresh();
+      const next = data.job as BrokerJob | undefined;
+      if (!next) return;
+      const signature = `${next.updatedAt}:${next.status}:${JSON.stringify(next.payment ?? next.execution ?? null)}`;
+      if (signature !== lastSignature.current) {
+        lastSignature.current = signature;
+        setJob(next);
       }
     } catch {
       // transient network error — keep polling
     }
-  }, [jobId, onRefresh]);
+  }, [jobId]);
 
   useEffect(() => {
     const id = setInterval(() => void poll(), 1500);
@@ -172,14 +174,45 @@ export function BrokerJobView({ jobId, onRefresh, active }: { jobId: string; onR
 
         {job.payment && (
           <div className={cn('rounded-xl border p-3.5 text-xs', job.payment.mode === 'simulated' ? 'border-warning/25 bg-warning/5' : 'border-success/25 bg-success/5')}>
-            <p className={cn('font-medium mb-1', job.payment.mode === 'simulated' ? 'text-warning' : 'text-success')}>
-              {job.payment.mode === 'simulated' ? '🧪 Simulated x402 payment' : 'Real x402 payment executed'}
-            </p>
+            <div className="flex items-center justify-between mb-1">
+              <p className={cn('font-medium', job.payment.mode === 'simulated' ? 'text-warning' : 'text-success')}>
+                {job.payment.mode === 'simulated' ? '🧪 Simulated x402 payment' : 'Real x402 payment executed'}
+              </p>
+              {job.payment.mode === 'real' && job.payment.receipt && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-success/15 text-success border border-success/30">
+                  ✓ RECEIPT CONFIRMED
+                </span>
+              )}
+            </div>
             <p className="text-secondary font-mono">
               ${job.payment.amountUsdc.toFixed(2)} USDC → {job.payment.payTo.slice(0, 10)}…{job.payment.payTo.slice(-6)}
             </p>
-            {job.payment.txHash && (
-              <p className="mt-1 font-mono text-success break-all">tx {job.payment.txHash}</p>
+            {job.payment.mode === 'simulated' && (
+              <p className="mt-1 text-warning/80">No on-chain transaction — this spend did not happen.</p>
+            )}
+            {job.payment.txHash && job.payment.mode === 'real' && (
+              <>
+                <p className="mt-1 font-mono text-success break-all">tx {job.payment.txHash}</p>
+                {job.payment.receipt && (
+                  <div className="mt-2 space-y-1 font-mono text-[11px] text-secondary">
+                    <p>
+                      block {job.payment.receipt.blockNumber} · {job.payment.receipt.confirmations} conf · status {job.payment.receipt.status}
+                    </p>
+                    <p>
+                      recipient match: <span className={job.payment.receipt.matches.recipient ? 'text-success' : 'text-error'}>{job.payment.receipt.matches.recipient ? 'yes' : 'NO'}</span> · amount match:{' '}
+                      <span className={job.payment.receipt.matches.amount ? 'text-success' : 'text-error'}>{job.payment.receipt.matches.amount ? 'yes' : 'NO'}</span>
+                    </p>
+                    <a
+                      href={`https://basescan.org/tx/${job.payment.txHash}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-success underline decoration-success/40 underline-offset-2"
+                    >
+                      View on BaseScan <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}

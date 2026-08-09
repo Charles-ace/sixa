@@ -85,15 +85,25 @@ function storeJob(job: BrokerJob): void {
 }
 
 export function getJob(jobId: string): BrokerJob | null {
-  return jobs.get(jobId) ?? null;
+  const inMemory = jobs.get(jobId);
+  if (inMemory) return inMemory;
+  const fromDisk = loadJobs().find((j) => j.id === jobId);
+  if (fromDisk) {
+    jobs.set(jobId, fromDisk);
+    return fromDisk;
+  }
+  return null;
 }
 
 export function listJobs(): BrokerJob[] {
+  for (const job of loadJobs()) {
+    if (!jobs.has(job.id)) jobs.set(job.id, job);
+  }
   return [...jobs.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export function getAudit(jobId: string): AuditEvent[] {
-  return jobs.get(jobId)?.audit ?? [];
+  return getJob(jobId)?.audit ?? [];
 }
 
 export async function runJob(jobId: string, input: {
@@ -244,6 +254,28 @@ async function runCandidate(job: BrokerJob, client: BrokerMcpClient, candidate: 
     setStatus(job, 'paying');
     const payment = await payX402(call.quote, job.payMode);
     job.payment = payment;
+    if (payment.mode === 'real') {
+      if (!payment.receipt) {
+        throw new ProviderError({
+          code: 'payment_unverified',
+          message: `Real payment exited with ${payment.txHash ?? 'no hash'} but no on-chain receipt was captured. Treat as unverified.`,
+        });
+      }
+      const r = payment.receipt;
+      const mismatch = r.status !== 'success' || !r.matches.amount || !r.matches.recipient;
+      pushAudit(job, mismatch ? 'payment_unverified' : 'payment_verified', mismatch ? 'ON-CHAIN PAYMENT MISMATCH — receipt decodes but amount/recipient differ from the quote.' : 'On-chain receipt confirmed for the payment.', {
+        txHash: r.txHash,
+        blockNumber: r.blockNumber,
+        confirmations: r.confirmations,
+        amountMatch: r.matches.amount,
+        recipientMatch: r.matches.recipient,
+        recipient: r.recipient,
+        amountUsdc: r.amountUsdc,
+      });
+      if (mismatch) {
+        throw new ProviderError({ code: 'payment_mismatch', message: `On-chain receipt for ${r.txHash} does not match the quote (status=${r.status}, amount=${r.matches.amount}, recipient=${r.matches.recipient}).` });
+      }
+    }
     pushAudit(
       job,
       payment.mode === 'simulated' ? 'payment_simulated' : 'payment_made',
@@ -306,6 +338,9 @@ async function runCandidate(job: BrokerJob, client: BrokerMcpClient, candidate: 
 
     setStatus(job, 'verifying');
     const verified = await verifyExecution(client, execution.executionId);
+    if (verified.completed && job.payment?.txHash) {
+      verified.receipts = [job.payment.txHash];
+    }
     job.execution = verified;
     if (!verified.completed) {
       pushAudit(job, 'verification_failed', 'Independent verification failed.', {

@@ -10,14 +10,9 @@ import { BrokerAuditLog } from '@/components/broker/BrokerAuditLog';
 
 export default function AppPage() {
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
 
   const handleJobCreated = useCallback((jobId: string) => {
     setActiveJobId(jobId);
-  }, []);
-
-  const handleRefresh = useCallback(() => {
-    setRefreshKey((k) => k + 1);
   }, []);
 
   return (
@@ -42,11 +37,11 @@ export default function AppPage() {
           {activeJobId && (
             <>
               <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
-                <BrokerJobView jobId={activeJobId} active onRefresh={handleRefresh} />
+                <BrokerJobView jobId={activeJobId} active />
               </motion.div>
 
               <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }}>
-                <BrokerAuditLog jobId={activeJobId} refreshKey={refreshKey} />
+                <BrokerAuditLog jobId={activeJobId} />
               </motion.div>
             </>
           )}

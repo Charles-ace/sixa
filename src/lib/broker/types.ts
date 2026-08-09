@@ -58,6 +58,29 @@ export interface PaymentQuote {
   description: string;
 }
 
+export interface ReceiptCheck {
+  amount: boolean;
+  recipient: boolean;
+}
+
+export interface OnChainReceipt {
+  txHash: string;
+  status: 'success' | 'reverted';
+  from: string;
+  recipient: string;
+  asset: string;
+  network: string;
+  amountUnits: string;
+  amountUsdc: number;
+  blockNumber: number;
+  blockHash: string;
+  gasUsed: string;
+  gasPrice: string;
+  confirmations: number;
+  matches: ReceiptCheck;
+  verifiedAt: string;
+}
+
 export interface PaymentRecord {
   mode: PaymentMode;
   amountUsdc: number;
@@ -67,6 +90,7 @@ export interface PaymentRecord {
   status: 'quoted' | 'paid' | 'simulated';
   txHash?: string;
   paidAt?: string;
+  receipt?: OnChainReceipt | null;
 }
 
 export interface ExecutionResult {
@@ -90,6 +114,9 @@ export type AuditEventType =
   | 'quote_received'
   | 'payment_made'
   | 'payment_simulated'
+  | 'payment_verified'
+  | 'payment_unverified'
+  | 'payment_reverted'
   | 'execution_requested'
   | 'execution_polled'
   | 'execution_completed'
