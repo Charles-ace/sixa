@@ -50,7 +50,7 @@ export function LandingCTA() {
           className="flex flex-col sm:flex-row items-center justify-center gap-3"
         >
           <a
-            href="/app"
+            href="/signin"
             className="inline-flex items-center gap-2 rounded-full bg-foreground text-background px-7 py-3.5 text-sm font-medium hover:opacity-85 transition-opacity"
           >
             Open the broker <ArrowUpRight className="w-4 h-4" />

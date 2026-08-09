@@ -36,6 +36,7 @@ export function BrokerIntake({ onJobCreated }: BrokerIntakeProps) {
       .then((data) => {
         setConfigMode(data.payments?.mode ?? 'simulated');
         setConfigNote(data.payments?.note ?? '');
+        if (data.payments?.mode === 'real') setPayReal(true);
       })
       .catch(() => setConfigMode('simulated'));
   }, []);

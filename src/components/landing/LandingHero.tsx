@@ -90,7 +90,7 @@ export function LandingHero() {
               <Button
                 size="lg"
                 className="gap-2"
-                onClick={() => router.push('/app')}
+                onClick={() => router.push('/signin')}
               >
                 Open the broker
                 <ArrowUpRight className="w-4 h-4" />

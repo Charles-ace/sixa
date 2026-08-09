@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Mail, LogOut, Loader2, Check, Sparkles, ArrowLeft, ShieldAlert } from 'lucide-react';
+import { Mail, LogOut, Loader2, Sparkles, ArrowLeft, ShieldAlert } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import { formatAddress } from '@/lib/utils';
