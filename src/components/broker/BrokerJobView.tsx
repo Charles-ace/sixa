@@ -332,11 +332,41 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
         )}
 
         {job.execution && (
-          <div className={cn('rounded-xl border p-3.5 text-xs', job.execution.verified ? 'border-success/25 bg-success/5' : job.execution.failed ? 'border-error/25 bg-error/5' : 'border-border bg-black/[0.04]')}>
+          <div
+            className={cn(
+              'rounded-xl border p-3.5 text-xs',
+              job.execution.verified || (job.status === 'completed' && !job.execution.failed)
+                ? 'border-success/25 bg-success/5'
+                : job.execution.simulated
+                  ? 'border-warning/25 bg-warning/5'
+                  : job.execution.failed
+                    ? 'border-error/25 bg-error/5'
+                    : 'border-border bg-black/[0.04]'
+            )}
+          >
             <div className="flex items-center justify-between mb-1">
               <p className="text-secondary font-medium">Execution &amp; verification</p>
-              <span className={cn('font-medium', job.execution.simulated ? 'text-warning' : job.execution.verified ? 'text-success' : 'text-error')}>
-                {job.execution.simulated ? 'SIMULATED' : job.execution.verified ? 'INDEPENDENTLY VERIFIED' : job.execution.failed ? 'UNVERIFIED' : 'PENDING'}
+              <span
+                className={cn(
+                  'font-medium',
+                  job.execution.simulated
+                    ? 'text-warning'
+                    : job.execution.verified || (job.status === 'completed' && !job.execution.failed)
+                      ? 'text-success'
+                      : job.execution.failed
+                        ? 'text-error'
+                        : 'text-primary'
+                )}
+              >
+                {job.execution.simulated
+                  ? 'SIMULATED'
+                  : job.execution.verified
+                    ? 'INDEPENDENTLY VERIFIED'
+                    : job.status === 'completed' && !job.execution.failed
+                      ? 'WORKFLOW LAUNCHED & RUNNING'
+                      : job.execution.failed
+                        ? 'UNVERIFIED'
+                        : 'EXECUTING'}
               </span>
             </div>
             {job.execution.executionId && (
