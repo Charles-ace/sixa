@@ -19,7 +19,10 @@ function errorResponse(error: unknown) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json({ error: 'Invalid or empty request body.', code: 'invalid_body' }, { status: 400 });
+    }
     const { intent } = body as { intent: ParsedIntent };
 
     if (!intent?.type) {

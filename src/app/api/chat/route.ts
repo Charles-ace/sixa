@@ -13,7 +13,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json({ error: 'Invalid or empty request body.', code: 'invalid_body' }, { status: 400 });
+    }
     const { message, history = [], walletAddress, chainId, accountAddress, accountEmail } = body;
 
     const result = await runAgentRequest({ message, history, walletAddress, chainId, accountAddress, accountEmail });
