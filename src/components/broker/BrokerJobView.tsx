@@ -33,14 +33,17 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
   const [job, setJob] = useState<BrokerJob | null>(null);
   const [notFound, setNotFound] = useState(false);
   const lastSignature = useRef<string>('');
+  const misses = useRef(0);
 
   const poll = useCallback(async () => {
     try {
       const res = await fetch(`/api/broker/jobs/${jobId}`);
       if (res.status === 404) {
-        setNotFound(true);
+        misses.current += 1;
+        if (misses.current >= 3) setNotFound(true);
         return;
       }
+      misses.current = 0;
       const data = await res.json();
       const next = data.job as BrokerJob | undefined;
       if (!next) return;
@@ -62,7 +65,7 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
   if (notFound) {
     return (
       <div className="rounded-2xl bg-surface/60 border border-border backdrop-blur-xl p-8 text-center">
-        <p className="text-sm text-secondary">This job is no longer available (in-memory store).</p>
+        <p className="text-sm text-secondary">This job is not reachable right now. If it persists, create a new job.</p>
       </div>
     );
   }

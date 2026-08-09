@@ -43,5 +43,5 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
-  return NextResponse.json({ jobs: listJobs() });
+  return NextResponse.json({ jobs: await listJobs() });
 }

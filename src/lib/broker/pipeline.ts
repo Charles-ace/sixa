@@ -7,7 +7,7 @@ import { verifyExecution } from './verify';
 import { generateAndRun } from './generate';
 import { generateId } from '@/lib/utils';
 import { ProviderError } from '@/lib/keeperhub/providers/http';
-import { loadJobs, saveJobs } from './store';
+import { loadJobs, loadSharedJobs, saveJobs, usesSharedStore } from './store';
 import type { AuditEvent, AuditEventType, BrokerJob, ExecutionResult, JobSpec, ListingCandidate, PaymentMode } from './types';
 
 const jobs = new Map<string, BrokerJob>();
@@ -18,16 +18,16 @@ const MAX_JOBS = 50;
 
 export const brokerMcpClient = new BrokerMcpClient();
 
-export function createJob(input: {
+export async function createJob(input: {
   message: string;
   accountEmail?: string | null;
   budgetUsdc?: number;
   forcedSlug?: string | null;
   payMode?: PaymentMode;
-}): BrokerJob {
+}): Promise<BrokerJob> {
   const jobId = generateId();
   void runJob(jobId, input);
-  const job = getJob(jobId);
+  const job = await getJob(jobId);
   if (!job) {
     throw new ProviderError({ code: 'job_creation_failed', message: 'Job could not be registered.' });
   }
@@ -84,9 +84,17 @@ function storeJob(job: BrokerJob): void {
   saveJobs([...jobs.values()]);
 }
 
-export function getJob(jobId: string): BrokerJob | null {
+export async function getJob(jobId: string): Promise<BrokerJob | null> {
   const inMemory = jobs.get(jobId);
   if (inMemory) return inMemory;
+  if (usesSharedStore()) {
+    const shared = await loadSharedJobs();
+    const fromShared = shared.find((j) => j.id === jobId);
+    if (fromShared) {
+      jobs.set(jobId, fromShared);
+      return fromShared;
+    }
+  }
   const fromDisk = loadJobs().find((j) => j.id === jobId);
   if (fromDisk) {
     jobs.set(jobId, fromDisk);
@@ -95,15 +103,20 @@ export function getJob(jobId: string): BrokerJob | null {
   return null;
 }
 
-export function listJobs(): BrokerJob[] {
+export async function listJobs(): Promise<BrokerJob[]> {
+  if (usesSharedStore()) {
+    for (const job of await loadSharedJobs()) {
+      if (!jobs.has(job.id)) jobs.set(job.id, job);
+    }
+  }
   for (const job of loadJobs()) {
     if (!jobs.has(job.id)) jobs.set(job.id, job);
   }
   return [...jobs.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-export function getAudit(jobId: string): AuditEvent[] {
-  return getJob(jobId)?.audit ?? [];
+export async function getAudit(jobId: string): Promise<AuditEvent[]> {
+  return (await getJob(jobId))?.audit ?? [];
 }
 
 export async function runJob(jobId: string, input: {
