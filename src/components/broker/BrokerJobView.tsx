@@ -1,11 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Loader2, ArrowRight, ScrollText, ExternalLink } from 'lucide-react';
+import { Loader2, ArrowRight, ScrollText, ExternalLink, Wallet } from 'lucide-react';
+import { encodeFunctionData, parseAbi } from 'viem';
 import { cn } from '@/lib/utils';
+import { isNativeAsset } from '@/lib/broker/types';
 import type { BrokerJob, JobStatus } from '@/lib/broker/types';
 
-const STEPS: JobStatus[] = ['intake', 'discovering', 'selecting', 'quoting', 'paying', 'executing', 'verifying'];
+const STEPS: JobStatus[] = ['intake', 'discovering', 'selecting', 'quoting', 'paying', 'awaiting_payment', 'executing', 'verifying'];
 
 const STEP_LABELS: Record<string, string> = {
   intake: 'Intake',
@@ -13,6 +15,7 @@ const STEP_LABELS: Record<string, string> = {
   selecting: 'Select',
   quoting: 'Quote',
   paying: 'Pay',
+  awaiting_payment: 'Approve',
   executing: 'Execute',
   verifying: 'Verify',
 };
@@ -23,11 +26,14 @@ const STATUS_LABELS: Record<JobStatus, string> = {
   selecting: 'Selecting listing',
   quoting: 'Requesting x402 quote',
   paying: 'Settling payment',
+  awaiting_payment: 'Awaiting your payment approval',
   executing: 'Running workflow',
   verifying: 'Verifying execution',
   completed: 'Completed',
   failed: 'Failed',
 };
+
+const TRANSFER_ABI = parseAbi(['function transfer(address to, uint256 amount) returns (bool)']);
 
 export function BrokerJobView({ jobId, active }: { jobId: string; active?: boolean }) {
   const [job, setJob] = useState<BrokerJob | null>(null);
@@ -35,6 +41,50 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
   const notFoundRef = useRef(false);
   const lastSignature = useRef<string>('');
   const misses = useRef(0);
+  const [payState, setPayState] = useState<{ status: 'idle' | 'signing' | 'submitting' | 'error'; error?: string }>({ status: 'idle' });
+
+  const payFromWallet = useCallback(async () => {
+    const quote = job?.quote;
+    if (!quote) return;
+    const eth = window.ethereum;
+    if (!eth) {
+      setPayState({ status: 'error', error: 'No EVM wallet detected. Install MetaMask or another wallet.' });
+      return;
+    }
+    try {
+      setPayState({ status: 'signing' });
+      const accounts = (await eth.request({ method: 'eth_requestAccounts' })) as string[];
+      const from = accounts[0];
+      if (!from) throw new Error('No account selected in your wallet.');
+      const native = isNativeAsset(quote.asset);
+      const txParams = native
+        ? { from, to: quote.payTo, data: '', value: `0x${BigInt(quote.amountUnits).toString(16)}` }
+        : {
+            from,
+            to: quote.asset,
+            data: encodeFunctionData({
+              abi: TRANSFER_ABI,
+              functionName: 'transfer',
+              args: [quote.payTo as `0x${string}`, BigInt(quote.amountUnits)],
+            }),
+            value: '0x0',
+          };
+      const txHash = (await eth.request({ method: 'eth_sendTransaction', params: [txParams] })) as string;
+      setPayState({ status: 'submitting' });
+      const res = await fetch(`/api/broker/jobs/${job?.id}/payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ txHash, from }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? 'Payment confirmation failed');
+      }
+      setPayState({ status: 'idle' });
+    } catch (err) {
+      setPayState({ status: 'error', error: err instanceof Error ? err.message.split('\n')[0] : 'Payment failed' });
+    }
+  }, [job]);
 
   const poll = useCallback(async () => {
     try {
@@ -112,6 +162,48 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
       </div>
 
       <div className="p-5 space-y-5">
+        {job.status === 'awaiting_payment' && job.quote && (
+          <div className="rounded-xl bg-black/[0.04] border border-border p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Wallet className="w-4 h-4 text-foreground" />
+              <p className="text-sm font-medium text-foreground">Approve the x402 payment from your wallet</p>
+            </div>
+            <p className="text-xs text-secondary mb-1">
+              Send{' '}
+              <span className="font-mono text-foreground">
+                {job.quote.amountUsdc} {isNativeAsset(job.quote.asset) ? 'ETH' : 'USDC'}
+              </span>{' '}
+              to{' '}
+              <span className="font-mono text-foreground">
+                {job.quote.payTo.slice(0, 8)}…{job.quote.payTo.slice(-6)}
+              </span>{' '}
+              from the wallet you approve in MetaMask. Gas is paid by your wallet (~$0.02).
+            </p>
+            <button
+              onClick={() => void payFromWallet()}
+              disabled={payState.status === 'signing' || payState.status === 'submitting'}
+              className="w-full mt-3 flex items-center justify-center gap-2 py-3 rounded-xl bg-foreground text-background text-sm font-medium hover:opacity-85 active:scale-[0.98] transition-all disabled:opacity-50"
+            >
+              {payState.status === 'signing' ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" /> Waiting for wallet approval…
+                </>
+              ) : payState.status === 'submitting' ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" /> Verifying on-chain receipt…
+                </>
+              ) : (
+                <>
+                  <Wallet className="w-4 h-4" /> Approve & send {job.quote.amountUsdc} {isNativeAsset(job.quote.asset) ? 'ETH' : 'USDC'}
+                </>
+              )}
+            </button>
+            {payState.status === 'error' && (
+              <p className="mt-2 text-xs text-error">{payState.error}</p>
+            )}
+          </div>
+        )}
+
         <div>
           <p className="text-sm text-foreground mb-1">{job.spec.goal}</p>
           <p className="text-xs text-muted-foreground">

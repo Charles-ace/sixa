@@ -2,14 +2,14 @@ import { BrokerMcpClient } from './client';
 import { discover } from './discover';
 import { select, bestMatchScore } from './select';
 import { intake } from './intake';
-import { payX402, payerMode } from './pay';
+import { basePublicClient, confirmOnChainReceipt, payX402, payerMode } from './pay';
 import { verifyExecution } from './verify';
 import { generateAndRun } from './generate';
 import { after } from 'next/server';
 import { generateId } from '@/lib/utils';
 import { ProviderError } from '@/lib/keeperhub/providers/http';
 import { flushSharedNow, loadJobs, loadSharedJobs, saveJobs, usesSharedStore } from './store';
-import type { AuditEvent, AuditEventType, BrokerJob, ExecutionResult, JobSpec, ListingCandidate, PaymentMode } from './types';
+import { isNativeAsset, type AuditEvent, type AuditEventType, type BrokerJob, type ExecutionResult, type JobSpec, type ListingCandidate, type PaymentMode } from './types';
 
 const jobs = new Map<string, BrokerJob>();
 for (const job of loadJobs()) {
@@ -102,14 +102,22 @@ function storeJob(job: BrokerJob): void {
 
 export async function getJob(jobId: string): Promise<BrokerJob | null> {
   const inMemory = jobs.get(jobId);
-  if (inMemory) return inMemory;
   if (usesSharedStore()) {
-    const shared = await loadSharedJobs();
-    const fromShared = shared.find((j) => j.id === jobId);
-    if (fromShared) {
-      jobs.set(jobId, fromShared);
-      return fromShared;
+    // Prefer the freshest copy: another serverless instance may have advanced
+    // the job (e.g. after a user-signed payment) since this instance cached it.
+    try {
+      const shared = await loadSharedJobs();
+      const fromShared = shared.find((j) => j.id === jobId);
+      if (fromShared && (!inMemory || new Date(fromShared.updatedAt) > new Date(inMemory.updatedAt))) {
+        jobs.set(jobId, fromShared);
+        return fromShared;
+      }
+    } catch {
+      // blob unavailable — fall through to local sources
     }
+    if (inMemory) return inMemory;
+  } else if (inMemory) {
+    return inMemory;
   }
   const fromDisk = loadJobs().find((j) => j.id === jobId);
   if (fromDisk) {
@@ -120,15 +128,122 @@ export async function getJob(jobId: string): Promise<BrokerJob | null> {
 }
 
 export async function listJobs(): Promise<BrokerJob[]> {
+  let shared: BrokerJob[] = [];
   if (usesSharedStore()) {
-    for (const job of await loadSharedJobs()) {
-      if (!jobs.has(job.id)) jobs.set(job.id, job);
+    try {
+      shared = await loadSharedJobs();
+    } catch {
+      shared = [];
     }
+  }
+  for (const job of shared) {
+    const existing = jobs.get(job.id);
+    if (!existing || new Date(job.updatedAt) > new Date(existing.updatedAt)) jobs.set(job.id, job);
   }
   for (const job of loadJobs()) {
     if (!jobs.has(job.id)) jobs.set(job.id, job);
   }
   return [...jobs.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+/**
+ * Called by the payment confirmation route after the user's on-chain
+ * transfer verifies: executes and verifies the selected listing, completing
+ * the pipeline that paused in 'awaiting_payment'.
+ */
+export async function resumeAfterUserPayment(jobId: string): Promise<void> {
+  const job = await getJob(jobId);
+  if (!job || job.status !== 'awaiting_payment' || !job.selected) return;
+  if (!job.payment || job.payment.status !== 'paid') return;
+  await executeAndVerify(job, brokerMcpClient, job.selected, true);
+}
+
+/**
+ * Verifies the user-signed x402 payment on-chain, records it, and resumes
+ * the paused pipeline. Returns an { ok, code, error } envelope the API
+ * route can forward verbatim as HTTP statuses.
+ */
+export async function confirmUserPayment(
+  jobId: string,
+  txHash: string,
+  from?: string
+): Promise<{ ok: boolean; code?: string; error?: string; hint?: string }> {
+  const job = await getJob(jobId);
+  if (!job) return { ok: false, code: 'job_not_found', error: 'Job not found.' };
+  if (job.status !== 'awaiting_payment' || !job.quote || !job.payment) {
+    return { ok: false, code: 'no_pending_payment', error: 'This job is not waiting for a payment.' };
+  }
+  if (job.payment.status === 'paid') return { ok: true };
+
+  if (!/^0x[0-9a-fA-F]{64}$/.test(txHash)) {
+    return { ok: false, code: 'invalid_tx_hash', error: 'A valid transaction hash is required.' };
+  }
+  if (from && !/^0x[0-9a-fA-F]{40}$/.test(from)) {
+    return { ok: false, code: 'invalid_from', error: 'Invalid wallet address.' };
+  }
+
+  const quote = job.quote;
+  let receipt;
+  try {
+    receipt = await confirmOnChainReceipt({
+      txHash: txHash as `0x${string}`,
+      asset: quote.asset,
+      native: isNativeAsset(quote.asset),
+      expectedAmountUnits: quote.amountUnits,
+      expectedRecipient: quote.payTo,
+      expectedFrom: from || undefined,
+      publicClient: basePublicClient(),
+      payer: '',
+      networkName: 'base',
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      code: 'payment_unverified',
+      error: error instanceof Error ? error.message : 'Payment verification failed.',
+      hint: error instanceof ProviderError ? error.hint : undefined,
+    };
+  }
+
+  const mismatch = receipt.status !== 'success' || !receipt.matches.amount || !receipt.matches.recipient || !receipt.matches.sender;
+
+  job.payment = {
+    mode: 'user',
+    amountUsdc: quote.amountUsdc,
+    asset: quote.asset,
+    payTo: quote.payTo,
+    network: quote.network,
+    status: 'paid',
+    txHash,
+    paidAt: new Date().toISOString(),
+    receipt,
+  };
+
+  pushAudit(job, mismatch ? 'payment_unverified' : 'payment_verified', mismatch ? 'ON-CHAIN PAYMENT MISMATCH — your transfer does not match the quote.' : 'On-chain receipt confirmed for your wallet payment.', {
+    txHash,
+    blockNumber: receipt.blockNumber,
+    confirmations: receipt.confirmations,
+    amountMatch: receipt.matches.amount,
+    recipientMatch: receipt.matches.recipient,
+    senderMatch: receipt.matches.sender,
+    sender: receipt.from,
+    amountUsdc: receipt.amountUsdc,
+  });
+
+  if (mismatch) {
+    job.error = `Payment ${txHash} does not match the quote (amount=${receipt.matches.amount}, recipient=${receipt.matches.recipient}, sender=${receipt.matches.sender}).`;
+    return { ok: false, code: 'payment_mismatch', error: job.error };
+  }
+
+  pushAudit(job, 'payment_made', 'x402 payment executed from your wallet.', {
+    mode: 'user',
+    txHash,
+    amountUsdc: receipt.amountUsdc,
+    payTo: receipt.recipient,
+  });
+  storeJob(job);
+  after(() => void resumeAfterUserPayment(jobId));
+  return { ok: true };
 }
 
 export async function getAudit(jobId: string): Promise<AuditEvent[]> {
@@ -262,7 +377,9 @@ async function executePipeline(job: BrokerJob): Promise<void> {
 
   for (const candidate of ordered) {
     try {
-      await runCandidate(job, client, candidate);
+      const phase = await quoteCandidate(job, client, candidate);
+      if (phase === 'paused') return;
+      await executeAndVerify(job, client, candidate, true);
       return;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'unknown error';
@@ -277,10 +394,13 @@ async function executePipeline(job: BrokerJob): Promise<void> {
 }
 
 /**
- * Quote → pay → execute → verify for a single candidate. Throws on any
- * failure so the pipeline can move on to the next candidate.
+ * Phase 1: quote and settle payment for a candidate.
+ *
+ * Returns 'paid' when execution may proceed, 'paused' when the payment was
+ * handed to the user's wallet (executeAndVerify runs later via the payment
+ * route), or throws so the pipeline can move on to the next candidate.
  */
-async function runCandidate(job: BrokerJob, client: BrokerMcpClient, candidate: ListingCandidate): Promise<void> {
+async function quoteCandidate(job: BrokerJob, client: BrokerMcpClient, candidate: ListingCandidate): Promise<'paid' | 'paused'> {
   setStatus(job, 'quoting');
   const params = normalizeParams(job.spec.params, candidate.inputSchema);
   const call = await client.callWorkflow(candidate.slug, params);
@@ -302,6 +422,28 @@ async function runCandidate(job: BrokerJob, client: BrokerMcpClient, candidate: 
       });
     }
 
+    if (job.payMode === 'user') {
+      // Hand the payment to the user's own wallet: the pipeline pauses here
+      // and the client signs the USDC/ETH transfer, then confirms it via
+      // /api/broker/jobs/[id]/payment, which resumes execution.
+      job.payment = {
+        mode: 'user',
+        amountUsdc: call.quote.amountUsdc,
+        asset: call.quote.asset,
+        payTo: call.quote.payTo,
+        network: call.quote.network,
+        status: 'quoted',
+      };
+      pushAudit(job, 'quote_received', 'Waiting for you to approve the x402 payment from your wallet.', {
+        amountUsdc: call.quote.amountUsdc,
+        asset: call.quote.asset,
+        payTo: call.quote.payTo,
+      });
+      setStatus(job, 'awaiting_payment');
+      storeJob(job);
+      return 'paused';
+    }
+
     setStatus(job, 'paying');
     const payment = await payX402(call.quote, job.payMode);
     job.payment = payment;
@@ -313,8 +455,8 @@ async function runCandidate(job: BrokerJob, client: BrokerMcpClient, candidate: 
         });
       }
       const r = payment.receipt;
-      const mismatch = r.status !== 'success' || !r.matches.amount || !r.matches.recipient;
-      pushAudit(job, mismatch ? 'payment_unverified' : 'payment_verified', mismatch ? 'ON-CHAIN PAYMENT MISMATCH — receipt decodes but amount/recipient differ from the quote.' : 'On-chain receipt confirmed for the payment.', {
+      const mismatch = r.status !== 'success' || !r.matches.amount || !r.matches.recipient || !r.matches.sender;
+      pushAudit(job, mismatch ? 'payment_unverified' : 'payment_verified', mismatch ? 'ON-CHAIN PAYMENT MISMATCH — receipt decodes but amount/recipient/sender differ from the quote.' : 'On-chain receipt confirmed for the payment.', {
         txHash: r.txHash,
         blockNumber: r.blockNumber,
         confirmations: r.confirmations,
@@ -324,7 +466,7 @@ async function runCandidate(job: BrokerJob, client: BrokerMcpClient, candidate: 
         amountUsdc: r.amountUsdc,
       });
       if (mismatch) {
-        throw new ProviderError({ code: 'payment_mismatch', message: `On-chain receipt for ${r.txHash} does not match the quote (status=${r.status}, amount=${r.matches.amount}, recipient=${r.matches.recipient}).` });
+        throw new ProviderError({ code: 'payment_mismatch', message: `On-chain receipt for ${r.txHash} does not match the quote (status=${r.status}, amount=${r.matches.amount}, recipient=${r.matches.recipient}, sender=${r.matches.sender}).` });
       }
     }
     pushAudit(
@@ -340,39 +482,56 @@ async function runCandidate(job: BrokerJob, client: BrokerMcpClient, candidate: 
     );
     storeJob(job);
 
-    // Execute now that payment is confirmed
-    setStatus(job, 'executing');
-    const execution = await client.callWorkflow(candidate.slug, params);
-
-    if (job.payMode === 'simulated' && execution.quote) {
+    if (job.payMode === 'simulated') {
       // Simulated mode: the x402 gateway still requires real payment, so no
       // real execution starts. Record an explicit, labeled simulated outcome.
-      const simulated: ExecutionResult = {
-        executionId: null,
-        status: 'simulated',
-        output: null,
-        completed: true,
-        failed: false,
-        error: null,
-        verified: true,
-        receipts: [],
-        simulated: true,
-      };
-      job.execution = simulated;
-      pushAudit(job, 'execution_completed', 'Simulated execution — payment was not real, so the listing returned a fresh x402 quote instead of executing.', {
-        slug: candidate.slug,
-        payMode: job.payMode,
-      });
-      pushAudit(job, 'verification_passed', 'Independent verification PASSED (simulated execution has no on-chain counterpart).', {
-        payMode: job.payMode,
-      });
-      setStatus(job, 'completed');
-      pushAudit(job, 'job_completed', 'Job completed (simulated payment path).', { slug: candidate.slug });
-      job.report = buildSuccessReport(job);
-      storeJob(job);
-      return;
+      const execution = await client.callWorkflow(candidate.slug, params);
+      if (execution.quote) {
+        const simulated: ExecutionResult = {
+          executionId: null,
+          status: 'simulated',
+          output: null,
+          completed: true,
+          failed: false,
+          error: null,
+          verified: true,
+          receipts: [],
+          simulated: true,
+        };
+        job.execution = simulated;
+        pushAudit(job, 'execution_completed', 'Simulated execution — payment was not real, so the listing returned a fresh x402 quote instead of executing.', {
+          slug: candidate.slug,
+          payMode: job.payMode,
+        });
+        pushAudit(job, 'verification_passed', 'Independent verification PASSED (simulated execution has no on-chain counterpart).', {
+          payMode: job.payMode,
+        });
+        setStatus(job, 'completed');
+        pushAudit(job, 'job_completed', 'Job completed (simulated payment path).', { slug: candidate.slug });
+        job.report = buildSuccessReport(job);
+        storeJob(job);
+        return 'paused';
+      }
     }
+    return 'paid';
+  }
 
+  // Free (unpriced) listing — ran directly; execute without payment.
+  await executeAndVerify(job, client, candidate, false, call);
+  return 'paused';
+}
+
+async function executeAndVerify(
+  job: BrokerJob,
+  client: BrokerMcpClient,
+  candidate: ListingCandidate,
+  paid: boolean,
+  initialCall?: { executionId: string | null; status: string; output: string | null; error: string | null }
+): Promise<void> {
+  const params = normalizeParams(job.spec.params, candidate.inputSchema);
+  if (paid) {
+    setStatus(job, 'executing');
+    const execution = await client.callWorkflow(candidate.slug, params);
     if (execution.error) {
       throw new ProviderError({ code: 'execution_failed', message: execution.error });
     }
@@ -405,25 +564,27 @@ async function runCandidate(job: BrokerJob, client: BrokerMcpClient, candidate: 
       status: verified.status,
     });
     pushAudit(job, 'execution_completed', 'Workflow completed.', { executionId: execution.executionId, status: verified.status });
-  } else if (call.executionId) {
-    // Free (unpriced) listing — ran directly.
-    job.execution = { executionId: call.executionId, status: call.status, output: call.output, completed: false, failed: false, error: null, verified: false, receipts: [] };
-    pushAudit(job, 'execution_requested', 'Execution started (free listing).', { executionId: call.executionId });
+  } else {
+    // Free listing: the initial call already returned an execution id.
+    const executionId = initialCall?.executionId ?? null;
+    if (!executionId) {
+      throw new ProviderError({ code: 'call_failed', message: `The workflow call for "${candidate.slug}" returned neither a quote nor an execution id.` });
+    }
+    job.execution = { executionId, status: initialCall?.status ?? 'running', output: initialCall?.output ?? null, completed: false, failed: false, error: null, verified: false, receipts: [] };
+    pushAudit(job, 'execution_requested', 'Execution started (free listing).', { executionId });
     storeJob(job);
     setStatus(job, 'verifying');
-    const verified = await verifyExecution(client, call.executionId);
+    const verified = await verifyExecution(client, executionId);
     job.execution = verified;
     if (!verified.completed) {
-      pushAudit(job, 'verification_failed', 'Independent verification failed.', { executionId: call.executionId, error: verified.error });
+      pushAudit(job, 'verification_failed', 'Independent verification failed.', { executionId, error: verified.error });
       throw new ProviderError({ code: 'verification_failed', message: verified.error ?? 'Execution did not verify.' });
     }
     pushAudit(job, 'verification_passed', 'Independent verification passed via KeeperHub execution status.', {
-      executionId: call.executionId,
+      executionId,
       status: verified.status,
     });
-    pushAudit(job, 'execution_completed', 'Workflow completed.', { executionId: call.executionId, status: verified.status });
-  } else {
-    throw new ProviderError({ code: 'call_failed', message: call.error ?? `The workflow call for "${candidate.slug}" returned neither a quote nor an execution id.` });
+    pushAudit(job, 'execution_completed', 'Workflow completed.', { executionId, status: verified.status });
   }
 
   setStatus(job, 'completed');

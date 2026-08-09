@@ -162,6 +162,7 @@ export interface ConfirmReceiptInput {
   native?: boolean;
   expectedAmountUnits?: string;
   expectedRecipient?: string;
+  expectedFrom?: string;
   publicClient: ReturnType<typeof basePublicClient>;
   payer: string;
   networkName?: string;
@@ -174,7 +175,7 @@ export interface ConfirmReceiptInput {
  * so a "real" payment can never silently masquerade as settled.
  */
 export async function confirmOnChainReceipt(opts: ConfirmReceiptInput): Promise<OnChainReceipt> {
-  const { txHash, asset, native = false, expectedAmountUnits, expectedRecipient, publicClient, payer, networkName = 'base' } = opts;
+  const { txHash, asset, native = false, expectedAmountUnits, expectedRecipient, expectedFrom, publicClient, payer, networkName = 'base' } = opts;
 
   let receipt;
   try {
@@ -201,6 +202,7 @@ export async function confirmOnChainReceipt(opts: ConfirmReceiptInput): Promise<
 
   let amountUnits: bigint | null = null;
   let recipient = '';
+  let sender = '';
   if (native) {
     // Native payment — the value moved is on the transaction itself, not a
     // token Transfer event.
@@ -208,6 +210,7 @@ export async function confirmOnChainReceipt(opts: ConfirmReceiptInput): Promise<
       const tx = await publicClient.getTransaction({ hash: txHash });
       amountUnits = tx.value;
       recipient = tx.to ? tx.to.toLowerCase() : '';
+      sender = tx.from.toLowerCase();
     } catch {
       // tx lookup failed — the mismatch checks below will flag it
     }
@@ -219,6 +222,7 @@ export async function confirmOnChainReceipt(opts: ConfirmReceiptInput): Promise<
         const args = decoded.args as { from: `0x${string}`; to: `0x${string}`; value: bigint };
         amountUnits = args.value;
         recipient = args.to.toLowerCase();
+        sender = args.from.toLowerCase();
       } catch {
         // undecodable log — the mismatch checks below will flag it
       }
@@ -229,12 +233,13 @@ export async function confirmOnChainReceipt(opts: ConfirmReceiptInput): Promise<
   const matches = {
     amount: amountUnits !== null && expectedAmountUnits !== undefined && amountUnits === BigInt(expectedAmountUnits),
     recipient: Boolean(expectedRecipient && recipient && recipient === expectedRecipient.toLowerCase()),
+    sender: expectedFrom ? Boolean(sender && sender === expectedFrom.toLowerCase()) : sender.length > 0,
   };
 
   return {
     txHash,
     status: 'success',
-    from: payer.toLowerCase(),
+    from: sender || payer.toLowerCase(),
     recipient,
     asset: native ? 'native' : asset.toLowerCase(),
     network: networkName,

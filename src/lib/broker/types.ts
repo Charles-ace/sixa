@@ -4,12 +4,13 @@ export type JobStatus =
   | 'selecting'
   | 'quoting'
   | 'paying'
+  | 'awaiting_payment'
   | 'executing'
   | 'verifying'
   | 'completed'
   | 'failed';
 
-export type PaymentMode = 'simulated' | 'real';
+export type PaymentMode = 'simulated' | 'real' | 'user';
 
 export interface JobSpec {
   goal: string;
@@ -77,6 +78,7 @@ export function assetDecimals(asset: string): number {
 export interface ReceiptCheck {
   amount: boolean;
   recipient: boolean;
+  sender: boolean;
 }
 
 export interface OnChainReceipt {

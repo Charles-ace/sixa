@@ -19,6 +19,7 @@ export function BrokerIntake({ onJobCreated }: BrokerIntakeProps) {
   const [message, setMessage] = useState('');
   const [budget, setBudget] = useState('0.10');
   const [payReal, setPayReal] = useState(false);
+  const [payFromWallet, setPayFromWallet] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [jobStarted, setJobStarted] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
@@ -76,7 +77,7 @@ export function BrokerIntake({ onJobCreated }: BrokerIntakeProps) {
         body: JSON.stringify({
           message: trimmed,
           budgetUsdc: Number(budget) || undefined,
-          payMode: payReal ? 'real' : 'simulated',
+          payMode: payFromWallet ? 'user' : payReal ? 'real' : 'simulated',
           ...(forcedSlug ? { forcedSlug } : {}),
         }),
       });
@@ -93,7 +94,7 @@ export function BrokerIntake({ onJobCreated }: BrokerIntakeProps) {
     } finally {
       setIsRunning(false);
     }
-  }, [message, budget, payReal, isRunning, onJobCreated]);
+  }, [message, budget, payReal, payFromWallet, isRunning, onJobCreated]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -142,7 +143,14 @@ export function BrokerIntake({ onJobCreated }: BrokerIntakeProps) {
             title={configMode === 'real' ? 'Payments will be broadcast from the configured broker wallet' : 'Real payments are unavailable: BROKER_PAYER_PRIVATE_KEY is not configured on this deployment'}
           >
             <input type="checkbox" checked={payReal && configMode === 'real'} disabled={configMode !== 'real'} onChange={(e) => setPayReal(e.target.checked)} className="accent-foreground disabled:cursor-not-allowed" />
-            request real x402 payment
+            broker pays
+          </label>
+          <label
+            className={cn('flex items-center gap-1.5 text-xs cursor-pointer', payFromWallet ? 'text-secondary' : 'text-secondary/60')}
+            title="You approve the payment from your own wallet — signature sent in MetaMask, receipt verified on-chain"
+          >
+            <input type="checkbox" checked={payFromWallet} onChange={(e) => setPayFromWallet(e.target.checked)} className="accent-foreground" />
+            pay from my wallet
           </label>
         </div>
 
