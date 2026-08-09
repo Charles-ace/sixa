@@ -32,6 +32,7 @@ const STATUS_LABELS: Record<JobStatus, string> = {
 export function BrokerJobView({ jobId, active }: { jobId: string; active?: boolean }) {
   const [job, setJob] = useState<BrokerJob | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const notFoundRef = useRef(false);
   const lastSignature = useRef<string>('');
   const misses = useRef(0);
 
@@ -40,10 +41,17 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
       const res = await fetch(`/api/broker/jobs/${jobId}`);
       if (res.status === 404) {
         misses.current += 1;
-        if (misses.current >= 3) setNotFound(true);
+        if (misses.current >= 3 && !notFoundRef.current) {
+          notFoundRef.current = true;
+          setNotFound(true);
+        }
         return;
       }
       misses.current = 0;
+      if (notFoundRef.current) {
+        notFoundRef.current = false;
+        setNotFound(false);
+      }
       const data = await res.json();
       const next = data.job as BrokerJob | undefined;
       if (!next) return;

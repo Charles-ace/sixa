@@ -5,9 +5,10 @@ import { intake } from './intake';
 import { payX402, payerMode } from './pay';
 import { verifyExecution } from './verify';
 import { generateAndRun } from './generate';
+import { after } from 'next/server';
 import { generateId } from '@/lib/utils';
 import { ProviderError } from '@/lib/keeperhub/providers/http';
-import { loadJobs, loadSharedJobs, saveJobs, usesSharedStore } from './store';
+import { flushSharedNow, loadJobs, loadSharedJobs, saveJobs, usesSharedStore } from './store';
 import type { AuditEvent, AuditEventType, BrokerJob, ExecutionResult, JobSpec, ListingCandidate, PaymentMode } from './types';
 
 const jobs = new Map<string, BrokerJob>();
@@ -26,11 +27,25 @@ export async function createJob(input: {
   payMode?: PaymentMode;
 }): Promise<BrokerJob> {
   const jobId = generateId();
-  void runJob(jobId, input);
-  const job = await getJob(jobId);
-  if (!job) {
-    throw new ProviderError({ code: 'job_creation_failed', message: 'Job could not be registered.' });
-  }
+  const pendingSpec: JobSpec = {
+    goal: input.message,
+    query: '',
+    params: {},
+    budgetUsdc: 0.5,
+    chainId: null,
+    maxPriceUsdc: 0.25,
+  };
+  const job = newJob(jobId, pendingSpec, {
+    ...input,
+    payMode: input.payMode,
+  });
+  storeJob(job);
+  // Make the job visible to every instance immediately — a debounced write
+  // can be dropped if the creating lambda freezes right after the response.
+  flushSharedNow([job]);
+  // Keep the pipeline alive past the response on serverless so every state
+  // change is flushed before the next poll reads it.
+  after(() => void runJob(jobId, input));
   return job;
 }
 
@@ -126,20 +141,24 @@ export async function runJob(jobId: string, input: {
   forcedSlug?: string | null;
   payMode?: PaymentMode;
 }): Promise<BrokerJob> {
-  // Register the job immediately so callers can poll it while intake runs.
-  const pendingSpec: JobSpec = {
-    goal: input.message,
-    query: '',
-    params: {},
-    budgetUsdc: 0.5,
-    chainId: null,
-    maxPriceUsdc: 0.25,
-  };
-  const job = newJob(jobId, pendingSpec, {
-    ...input,
-    payMode: input.payMode, // captured again below after intake
-  });
-  storeJob(job);
+  // Reuse the job registered by createJob when present; otherwise register
+  // one now so callers can poll it while intake runs.
+  let job = jobs.get(jobId) ?? null;
+  if (!job) {
+    const pendingSpec: JobSpec = {
+      goal: input.message,
+      query: '',
+      params: {},
+      budgetUsdc: 0.5,
+      chainId: null,
+      maxPriceUsdc: 0.25,
+    };
+    job = newJob(jobId, pendingSpec, {
+      ...input,
+      payMode: input.payMode, // captured again below after intake
+    });
+    storeJob(job);
+  }
 
   try {
     const spec = await intake({ message: input.message, budgetUsdc: input.budgetUsdc });
@@ -438,6 +457,13 @@ function buildSuccessReport(job: BrokerJob): string {
     `Listing: ${job.selected?.name} (${job.selected?.slug})`,
     `Price: $${job.selected?.priceUsdcPerCall.toFixed(2)}/call`,
     ...(job.payment ? [`Payment: ${job.payment.mode === 'simulated' ? 'simulated' : `real (tx ${job.payment.txHash})`} — $${job.payment.amountUsdc.toFixed(2)} ${job.payment.asset}`] : []),
+    ...(job.payment?.receipt
+      ? [
+          `Receipt: block ${job.payment.receipt.blockNumber} · status ${job.payment.receipt.status} · confirmations ${job.payment.receipt.confirmations}`,
+          `On-chain check: amount match ${job.payment.receipt.matches.amount ? 'YES' : 'NO'} · recipient match ${job.payment.receipt.matches.recipient ? 'YES' : 'NO'}`,
+          `Explorer: https://basescan.org/tx/${job.payment.txHash}`,
+        ]
+      : []),
     ...(job.execution?.executionId ? [`Execution id: ${job.execution.executionId}`] : []),
     `Status: ${job.execution?.status ?? 'pending'}`,
     `Verified: ${job.execution?.verified ? 'yes (KeeperHub execution status)' : 'no'}`,

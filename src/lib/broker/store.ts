@@ -6,7 +6,6 @@ import type { BrokerJob } from './types';
 const FILE_NAME = 'broker-jobs.json';
 const SAVE_DEBOUNCE_MS = 400;
 const REMOTE_PATH = 'sixa/broker-jobs.json';
-const REMOTE_SAVE_DEBOUNCE_MS = 800;
 const REMOTE_CACHE_TTL_MS = 2500;
 
 // Statically scoped under the project root so Turbopack allows the fs calls.
@@ -50,10 +49,10 @@ export function saveJobs(jobs: BrokerJob[]): void {
           console.warn('Broker persistence: job writes disabled (read-only filesystem?):', error instanceof Error ? error.message : error);
         }
       });
-    if (usesSharedStore()) {
-      pushRemote(jobs);
-    }
   }, SAVE_DEBOUNCE_MS);
+  // Blob writes are not debounced: the creating lambda can freeze right
+  // after responding, so every state change must be durable immediately.
+  flushSharedNow([...jobs]);
 }
 
 async function writeAtomic(target: string, content: string): Promise<void> {
@@ -67,7 +66,6 @@ async function writeAtomic(target: string, content: string): Promise<void> {
 
 let remoteCache: { jobs: BrokerJob[]; at: number } | null = null;
 let remoteInFlight: Promise<BrokerJob[]> | null = null;
-let remoteSaveTimer: NodeJS.Timeout | null = null;
 let remoteWarned = false;
 
 async function readRemote(): Promise<BrokerJob[]> {
@@ -101,22 +99,22 @@ export async function loadSharedJobs(): Promise<BrokerJob[]> {
   return jobs;
 }
 
-function pushRemote(jobs: BrokerJob[]): void {
-  if (remoteSaveTimer) clearTimeout(remoteSaveTimer);
-  remoteSaveTimer = setTimeout(() => {
-    writeChain = writeChain
-      .then(async () => {
-        await blobPut(REMOTE_PATH, JSON.stringify({ jobs }, null, 0), {
-          access: 'public',
-          addRandomSuffix: false,
-          cacheControlMaxAge: 0,
-        });
-      })
-      .catch((error) => {
-        if (!remoteWarned) {
-          remoteWarned = true;
-          console.warn('Broker persistence: shared blob write failed:', error instanceof Error ? error.message : error);
-        }
-      });
-  }, REMOTE_SAVE_DEBOUNCE_MS);
+async function putSnapshot(jobs: BrokerJob[]): Promise<void> {
+  await blobPut(REMOTE_PATH, JSON.stringify({ jobs }, null, 0), {
+    access: 'public',
+    addRandomSuffix: false,
+    cacheControlMaxAge: 0,
+  });
+}
+
+export function flushSharedNow(jobs: BrokerJob[]): void {
+  if (!usesSharedStore()) return;
+  writeChain = writeChain
+    .then(() => putSnapshot(jobs))
+    .catch((error) => {
+      if (!remoteWarned) {
+        remoteWarned = true;
+        console.warn('Broker store: shared blob write failed:', error instanceof Error ? error.message : error);
+      }
+    });
 }

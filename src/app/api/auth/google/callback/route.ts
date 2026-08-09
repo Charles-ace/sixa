@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { exchangeGoogleCode, getGoogleConfig, googleRedirectUri } from '@/lib/auth/google';
-import { verifyToken } from '@/lib/auth/token';
 import { createSessionCookie } from '@/lib/auth/session';
 import { resolveAccount } from '@/lib/auth/account';
 

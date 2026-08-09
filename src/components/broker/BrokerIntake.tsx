@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Sparkles, Loader2, RefreshCw } from 'lucide-react';
+import { Send, Sparkles, Loader2, RefreshCw, CheckCircle2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface BrokerIntakeProps {
@@ -21,6 +21,9 @@ export function BrokerIntake({ onJobCreated }: BrokerIntakeProps) {
   const [payReal, setPayReal] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [jobStarted, setJobStarted] = useState(false);
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobStatus, setJobStatus] = useState<'running' | 'completed' | 'failed' | null>(null);
+  const [jobError, setJobError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [configMode, setConfigMode] = useState('simulated');
   const [configNote, setConfigNote] = useState('');
@@ -36,6 +39,28 @@ export function BrokerIntake({ onJobCreated }: BrokerIntakeProps) {
       })
       .catch(() => setConfigMode('simulated'));
   }, []);
+
+  useEffect(() => {
+    if (!jobId) return;
+    const timer = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/broker/jobs/${jobId}`);
+        if (res.status === 404) return;
+        const data = await res.json();
+        const job = data.job as { status?: string; error?: string | null } | undefined;
+        if (!job?.status) return;
+        if (job.status === 'completed' || job.status === 'failed') {
+          setJobStatus(job.status === 'completed' ? 'completed' : 'failed');
+          setJobError(job.status === 'failed' ? (job.error ?? 'Broker pipeline failed.') : null);
+        } else {
+          setJobStatus('running');
+        }
+      } catch {
+        // transient network error — poll again
+      }
+    }, 2000);
+    return () => clearInterval(timer);
+  }, [jobId]);
 
   const handleSubmit = useCallback(async (text?: string, forcedSlug?: string | null) => {
     const trimmed = (text ?? message).trim();
@@ -58,6 +83,9 @@ export function BrokerIntake({ onJobCreated }: BrokerIntakeProps) {
       if (!response.ok) throw new Error(data.error ?? 'Job creation failed');
       setMessage('');
       setJobStarted(true);
+      setJobId(data.job.id);
+      setJobStatus('running');
+      setJobError(null);
       onJobCreated(data.job.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Job creation failed');
@@ -168,10 +196,22 @@ export function BrokerIntake({ onJobCreated }: BrokerIntakeProps) {
               Dispatching broker job…
             </motion.p>
           )}
-          {jobStarted && !isRunning && (
+          {jobStarted && jobStatus === 'running' && (
             <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 text-xs text-secondary flex items-center gap-1.5">
               <RefreshCw className="w-3.5 h-3.5 animate-spin" />
               Job running — live lifecycle updates below.
+            </motion.p>
+          )}
+          {jobStarted && jobStatus === 'completed' && (
+            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 text-xs text-success flex items-center gap-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              Job completed — receipt and report below.
+            </motion.p>
+          )}
+          {jobStarted && jobStatus === 'failed' && (
+            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 text-xs text-error flex items-center gap-1.5">
+              <XCircle className="w-3.5 h-3.5" />
+              Job failed — {jobError ?? 'see details below.'}
             </motion.p>
           )}
         </AnimatePresence>
