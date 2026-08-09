@@ -40,13 +40,12 @@ export async function createJob(input: {
     ...input,
     payMode: input.payMode,
   });
-  storeJob(job);
-  // Make the job visible to every instance immediately — a debounced write
-  // can be dropped if the creating lambda freezes right after the response.
-  flushSharedNow([job]);
+  await storeJob(job);
   // Keep the pipeline alive past the response on serverless so every state
   // change is flushed before the next poll reads it.
-  after(() => void runJob(jobId, input));
+  after(async () => {
+    await runJob(jobId, input);
+  });
   return job;
 }
 
@@ -87,7 +86,7 @@ function setStatus(job: BrokerJob, status: BrokerJob['status']): void {
   job.updatedAt = new Date().toISOString();
 }
 
-function storeJob(job: BrokerJob): void {
+async function storeJob(job: BrokerJob): Promise<void> {
   jobs.set(job.id, job);
   if (jobs.size > MAX_JOBS) {
     const oldest = [...jobs.keys()].sort((a, b) => {
@@ -97,7 +96,7 @@ function storeJob(job: BrokerJob): void {
     }).slice(0, jobs.size - MAX_JOBS);
     for (const key of oldest) jobs.delete(key);
   }
-  saveJobs([...jobs.values()]);
+  await saveJobs([...jobs.values()]);
 }
 
 export async function getJob(jobId: string): Promise<BrokerJob | null> {
@@ -241,7 +240,7 @@ export async function confirmUserPayment(
     amountUsdc: receipt.amountUsdc,
     payTo: receipt.recipient,
   });
-  storeJob(job);
+  await storeJob(job);
   after(() => void resumeAfterUserPayment(jobId));
   return { ok: true };
 }
@@ -273,7 +272,7 @@ export async function runJob(jobId: string, input: {
       ...input,
       payMode: input.payMode, // captured again below after intake
     });
-    storeJob(job);
+    await storeJob(job);
   }
 
   try {
@@ -286,7 +285,7 @@ export async function runJob(jobId: string, input: {
       budgetUsdc: spec.budgetUsdc,
       chainId: spec.chainId,
     });
-    storeJob(job);
+    await storeJob(job);
 
     await executePipeline(job);
   } catch (error) {
@@ -297,7 +296,7 @@ export async function runJob(jobId: string, input: {
       hint: error instanceof ProviderError ? error.hint : undefined,
     });
     job.report = buildFailureReport(job);
-    storeJob(job);
+    await storeJob(job);
   }
 
   return job;
@@ -332,7 +331,7 @@ async function executePipeline(job: BrokerJob): Promise<void> {
       setStatus(job, 'failed');
       pushAudit(job, 'job_failed', 'Forced listing unavailable.', { slug: job.forcedSlug, error: job.error });
       job.report = buildFailureReport(job);
-      storeJob(job);
+      await storeJob(job);
       return;
     }
   }
@@ -367,7 +366,7 @@ async function executePipeline(job: BrokerJob): Promise<void> {
     reason: selection.reason,
     runnerUp: selection.runnerUp?.slug ?? null,
   });
-  storeJob(job);
+  await storeJob(job);
 
   // Try the selected listing first, then each remaining candidate in order.
   const ordered = [
@@ -385,7 +384,7 @@ async function executePipeline(job: BrokerJob): Promise<void> {
       const message = error instanceof Error ? error.message : 'unknown error';
       pushAudit(job, 'candidate_failed', `Listing "${candidate.slug}" failed at call time.`, { slug: candidate.slug, error: message });
       setStatus(job, 'selecting');
-      storeJob(job);
+      await storeJob(job);
     }
   }
 
@@ -440,7 +439,7 @@ async function quoteCandidate(job: BrokerJob, client: BrokerMcpClient, candidate
         payTo: call.quote.payTo,
       });
       setStatus(job, 'awaiting_payment');
-      storeJob(job);
+      await storeJob(job);
       return 'paused';
     }
 
@@ -480,7 +479,7 @@ async function quoteCandidate(job: BrokerJob, client: BrokerMcpClient, candidate
         ...(payment.txHash ? { txHash: payment.txHash } : {}),
       }
     );
-    storeJob(job);
+    await storeJob(job);
 
     if (job.payMode === 'simulated') {
       // Simulated mode: the x402 gateway still requires real payment, so no
@@ -509,7 +508,7 @@ async function quoteCandidate(job: BrokerJob, client: BrokerMcpClient, candidate
         setStatus(job, 'completed');
         pushAudit(job, 'job_completed', 'Job completed (simulated payment path).', { slug: candidate.slug });
         job.report = buildSuccessReport(job);
-        storeJob(job);
+        await storeJob(job);
         return 'paused';
       }
     }
@@ -544,7 +543,7 @@ async function executeAndVerify(
     }
     pushAudit(job, 'execution_requested', 'Execution started after payment.', { executionId: execution.executionId });
     job.execution = { executionId: execution.executionId, status: execution.status, output: execution.output, completed: false, failed: false, error: null, verified: false, receipts: [] };
-    storeJob(job);
+    await storeJob(job);
 
     setStatus(job, 'verifying');
     const verified = await verifyExecution(client, execution.executionId);
@@ -572,7 +571,7 @@ async function executeAndVerify(
     }
     job.execution = { executionId, status: initialCall?.status ?? 'running', output: initialCall?.output ?? null, completed: false, failed: false, error: null, verified: false, receipts: [] };
     pushAudit(job, 'execution_requested', 'Execution started (free listing).', { executionId });
-    storeJob(job);
+    await storeJob(job);
     setStatus(job, 'verifying');
     const verified = await verifyExecution(client, executionId);
     job.execution = verified;
@@ -590,7 +589,7 @@ async function executeAndVerify(
   setStatus(job, 'completed');
   pushAudit(job, 'job_completed', 'Job completed.', { slug: candidate.slug });
   job.report = buildSuccessReport(job);
-  storeJob(job);
+  await storeJob(job);
 }
 
 async function attemptGenerationFallback(job: BrokerJob, client: BrokerMcpClient): Promise<void> {
@@ -624,7 +623,7 @@ async function attemptGenerationFallback(job: BrokerJob, client: BrokerMcpClient
       });
     }
     job.report = buildSuccessReport(job);
-    storeJob(job);
+    await storeJob(job);
     return;
   }
   pushAudit(job, 'fallback_executed', 'Generated fallback failed.', { error: result.execution.error });

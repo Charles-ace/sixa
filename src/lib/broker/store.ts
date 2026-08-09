@@ -37,7 +37,7 @@ export function loadJobs(): BrokerJob[] {
   }
 }
 
-export function saveJobs(jobs: BrokerJob[]): void {
+export function saveJobs(jobs: BrokerJob[]): Promise<void> {
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     const snapshot = JSON.stringify({ jobs }, null, 0);
@@ -52,7 +52,7 @@ export function saveJobs(jobs: BrokerJob[]): void {
   }, SAVE_DEBOUNCE_MS);
   // Blob writes are not debounced: the creating lambda can freeze right
   // after responding, so every state change must be durable immediately.
-  flushSharedNow([...jobs]);
+  return flushSharedNow([...jobs]);
 }
 
 async function writeAtomic(target: string, content: string): Promise<void> {
@@ -107,8 +107,8 @@ async function putSnapshot(jobs: BrokerJob[]): Promise<void> {
   });
 }
 
-export function flushSharedNow(jobs: BrokerJob[]): void {
-  if (!usesSharedStore()) return;
+export function flushSharedNow(jobs: BrokerJob[]): Promise<void> {
+  if (!usesSharedStore()) return Promise.resolve();
   writeChain = writeChain
     .then(() => putSnapshot(jobs))
     .catch((error) => {
@@ -117,4 +117,5 @@ export function flushSharedNow(jobs: BrokerJob[]): void {
         console.warn('Broker store: shared blob write failed:', error instanceof Error ? error.message : error);
       }
     });
+  return writeChain;
 }
