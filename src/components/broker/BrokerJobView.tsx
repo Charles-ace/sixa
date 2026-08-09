@@ -91,7 +91,7 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
       const res = await fetch(`/api/broker/jobs/${jobId}`);
       if (res.status === 404) {
         misses.current += 1;
-        if (misses.current >= 3 && !notFoundRef.current) {
+        if (misses.current >= 12 && !notFoundRef.current) {
           notFoundRef.current = true;
           setNotFound(true);
         }

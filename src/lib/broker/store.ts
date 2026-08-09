@@ -90,8 +90,8 @@ async function readRemote(): Promise<BrokerJob[]> {
   return remoteInFlight;
 }
 
-export async function loadSharedJobs(): Promise<BrokerJob[]> {
-  if (remoteCache && Date.now() - remoteCache.at < REMOTE_CACHE_TTL_MS) {
+export async function loadSharedJobs(forceFresh = false): Promise<BrokerJob[]> {
+  if (!forceFresh && remoteCache && Date.now() - remoteCache.at < REMOTE_CACHE_TTL_MS) {
     return remoteCache.jobs;
   }
   const jobs = await readRemote();

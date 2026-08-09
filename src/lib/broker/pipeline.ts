@@ -105,8 +105,12 @@ export async function getJob(jobId: string): Promise<BrokerJob | null> {
     // Prefer the freshest copy: another serverless instance may have advanced
     // the job (e.g. after a user-signed payment) since this instance cached it.
     try {
-      const shared = await loadSharedJobs();
-      const fromShared = shared.find((j) => j.id === jobId);
+      let shared = await loadSharedJobs();
+      let fromShared = shared.find((j) => j.id === jobId);
+      if (!fromShared) {
+        shared = await loadSharedJobs(true);
+        fromShared = shared.find((j) => j.id === jobId);
+      }
       if (fromShared && (!inMemory || new Date(fromShared.updatedAt) > new Date(inMemory.updatedAt))) {
         jobs.set(jobId, fromShared);
         return fromShared;
