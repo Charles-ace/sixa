@@ -106,6 +106,7 @@ async function putSnapshot(jobs: BrokerJob[]): Promise<void> {
   await blobPut(REMOTE_PATH, JSON.stringify({ jobs }, null, 0), {
     access: 'public',
     addRandomSuffix: false,
+    allowOverwrite: true,
     cacheControlMaxAge: 0,
   });
 }
