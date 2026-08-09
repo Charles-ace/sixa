@@ -70,7 +70,7 @@ let remoteWarned = false;
 
 async function readRemote(forceFresh = false): Promise<BrokerJob[]> {
   if (!forceFresh && remoteInFlight) return remoteInFlight;
-  const fetchPromise = (async () => {
+  const doFetch = async (): Promise<BrokerJob[]> => {
     try {
       const res = await blobGet(REMOTE_PATH, { access: 'public' });
       if (!res || res.statusCode !== 200 || !res.stream) return [];
@@ -84,9 +84,10 @@ async function readRemote(forceFresh = false): Promise<BrokerJob[]> {
       }
       return [];
     } finally {
-      if (remoteInFlight === fetchPromise) remoteInFlight = null;
+      remoteInFlight = null;
     }
-  })();
+  };
+  const fetchPromise = doFetch();
   if (!forceFresh) remoteInFlight = fetchPromise;
   return fetchPromise;
 }
