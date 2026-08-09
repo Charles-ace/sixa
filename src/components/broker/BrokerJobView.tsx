@@ -5,6 +5,7 @@ import { Loader2, ArrowRight, ScrollText, ExternalLink, Wallet } from 'lucide-re
 import { encodeFunctionData, parseAbi } from 'viem';
 import { cn } from '@/lib/utils';
 import { isNativeAsset } from '@/lib/broker/types';
+import { BrokerAuditLog } from '@/components/broker/BrokerAuditLog';
 import type { BrokerJob, JobStatus } from '@/lib/broker/types';
 
 const STEPS: JobStatus[] = ['intake', 'discovering', 'selecting', 'quoting', 'paying', 'awaiting_payment', 'executing', 'verifying'];
@@ -148,7 +149,20 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
     );
   }
 
-  const activeIndex = STEP_LABELS[job.status] ? STEPS.indexOf(job.status) : -1;
+  const targetActiveIndex = STEP_LABELS[job?.status ?? ''] ? STEPS.indexOf(job!.status) : -1;
+  const [animatedActiveIndex, setAnimatedActiveIndex] = useState(0);
+
+  useEffect(() => {
+    if (targetActiveIndex < 0) return;
+    if (animatedActiveIndex < targetActiveIndex) {
+      const timer = setTimeout(() => {
+        setAnimatedActiveIndex((prev) => Math.min(prev + 1, targetActiveIndex));
+      }, 120);
+      return () => clearTimeout(timer);
+    }
+  }, [targetActiveIndex, animatedActiveIndex]);
+
+  const activeIndex = animatedActiveIndex;
   const statusLabel = STATUS_LABELS[job.status];
   const stepDone = (i: number) => i < activeIndex || job.status === 'completed';
 
@@ -225,7 +239,7 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
 
         <div className="flex items-center gap-1.5 flex-wrap">
           {STEPS.map((step, i) => {
-            const isActive = step === job.status;
+            const isActive = i === activeIndex && job.status !== 'completed' && job.status !== 'failed';
             return (
               <div
                 key={step}
@@ -388,6 +402,8 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
             {job.error}
           </div>
         )}
+
+        <BrokerAuditLog jobId={job.id} />
       </div>
     </div>
   );
