@@ -8,7 +8,7 @@ import { generateAndRun } from './generate';
 import { after } from 'next/server';
 import { generateId } from '@/lib/utils';
 import { ProviderError } from '@/lib/keeperhub/providers/http';
-import { flushSharedNow, loadJobs, loadSharedJobs, saveJobs, usesSharedStore } from './store';
+import { loadJobs, loadSharedJobs, saveJobs, usesSharedStore } from './store';
 import { isNativeAsset, type AuditEvent, type AuditEventType, type BrokerJob, type ExecutionResult, type JobSpec, type ListingCandidate, type PaymentMode } from './types';
 
 const jobs = new Map<string, BrokerJob>();

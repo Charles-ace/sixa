@@ -43,6 +43,10 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
   const lastSignature = useRef<string>('');
   const misses = useRef(0);
   const [payState, setPayState] = useState<{ status: 'idle' | 'signing' | 'submitting' | 'error'; error?: string }>({ status: 'idle' });
+  const [serverDown, setServerDown] = useState(false);
+  const netFails = useRef(0);
+  const serverDownRef = useRef(false);
+  const [animatedActiveIndex, setAnimatedActiveIndex] = useState(0)
 
   const payFromWallet = useCallback(async () => {
     const quote = job?.quote;
@@ -89,7 +93,7 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
 
   const poll = useCallback(async () => {
     try {
-      const res = await fetch(`/api/broker/jobs/${jobId}`);
+      const res = await fetch(`/api/broker/jobs/${jobId}`, { signal: AbortSignal.timeout(12000) });
       if (res.status === 404) {
         misses.current += 1;
         if (misses.current >= 30 && !notFoundRef.current) {
@@ -103,6 +107,11 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
         notFoundRef.current = false;
         setNotFound(false);
       }
+      netFails.current = 0;
+      if (serverDownRef.current) {
+        serverDownRef.current = false;
+        setServerDown(false);
+      }
       const data = await res.json();
       const next = data.job as BrokerJob | undefined;
       if (!next) return;
@@ -112,7 +121,14 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
         setJob(next);
       }
     } catch {
-      // transient network error — keep polling
+      netFails.current += 1;
+      if (netFails.current >= 8 && !serverDownRef.current) {
+        serverDownRef.current = true;
+        setServerDown(true);
+      }
+      if (serverDownRef.current) {
+        setServerDown(true);
+      }
     }
   }, [jobId]);
 
@@ -121,15 +137,50 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
     return () => clearInterval(id);
   }, [poll]);
 
+  const targetActiveIndex = job && STEP_LABELS[job.status] ? STEPS.indexOf(job.status) : -1;
+
+  useEffect(() => {
+    if (targetActiveIndex < 0) return;
+    if (animatedActiveIndex < targetActiveIndex) {
+      const timer = setTimeout(() => {
+        setAnimatedActiveIndex((prev) => Math.min(prev + 1, targetActiveIndex));
+      }, 120);
+      return () => clearTimeout(timer);
+    }
+  }, [targetActiveIndex, animatedActiveIndex]);
+
   if (notFound) {
     return (
       <div className="rounded-2xl bg-surface/60 border border-border backdrop-blur-xl p-8 text-center space-y-4">
-        <p className="text-sm text-secondary">Connecting to execution node for job <code className="text-primary font-mono">{jobId}</code>…</p>
+        <p className="text-sm text-secondary">
+          This job is not reachable right now — the server lost it (scheduled restart or redeploy). If it persists, create a new job.
+        </p>
         <button
           onClick={() => {
             misses.current = 0;
             notFoundRef.current = false;
             setNotFound(false);
+            void poll();
+          }}
+          className="px-4 py-2 text-xs font-medium rounded-lg bg-surface border border-border text-primary hover:bg-surface/80 transition-colors"
+        >
+          Retry Connection
+        </button>
+      </div>
+    );
+  }
+
+  if (serverDown) {
+    return (
+      <div className="rounded-2xl bg-surface/60 border border-border backdrop-blur-xl border-error/20 p-8 text-center space-y-4">
+        <p className="text-sm text-secondary">
+          The server is unreachable right now — the deployment may be restarting or scaled to zero.
+        </p>
+        <button
+          onClick={() => {
+            netFails.current = 0;
+            serverDownRef.current = false;
+            setServerDown(false);
             void poll();
           }}
           className="px-4 py-2 text-xs font-medium rounded-lg bg-surface border border-border text-primary hover:bg-surface/80 transition-colors"
@@ -148,19 +199,6 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
       </div>
     );
   }
-
-  const targetActiveIndex = STEP_LABELS[job?.status ?? ''] ? STEPS.indexOf(job!.status) : -1;
-  const [animatedActiveIndex, setAnimatedActiveIndex] = useState(0);
-
-  useEffect(() => {
-    if (targetActiveIndex < 0) return;
-    if (animatedActiveIndex < targetActiveIndex) {
-      const timer = setTimeout(() => {
-        setAnimatedActiveIndex((prev) => Math.min(prev + 1, targetActiveIndex));
-      }, 120);
-      return () => clearTimeout(timer);
-    }
-  }, [targetActiveIndex, animatedActiveIndex]);
 
   const activeIndex = animatedActiveIndex;
   const statusLabel = STATUS_LABELS[job.status];
