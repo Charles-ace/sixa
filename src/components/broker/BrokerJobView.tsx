@@ -91,7 +91,7 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
       const res = await fetch(`/api/broker/jobs/${jobId}`);
       if (res.status === 404) {
         misses.current += 1;
-        if (misses.current >= 12 && !notFoundRef.current) {
+        if (misses.current >= 30 && !notFoundRef.current) {
           notFoundRef.current = true;
           setNotFound(true);
         }
@@ -122,8 +122,19 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
 
   if (notFound) {
     return (
-      <div className="rounded-2xl bg-surface/60 border border-border backdrop-blur-xl p-8 text-center">
-        <p className="text-sm text-secondary">This job is not reachable right now. If it persists, create a new job.</p>
+      <div className="rounded-2xl bg-surface/60 border border-border backdrop-blur-xl p-8 text-center space-y-4">
+        <p className="text-sm text-secondary">Connecting to execution node for job <code className="text-primary font-mono">{jobId}</code>…</p>
+        <button
+          onClick={() => {
+            misses.current = 0;
+            notFoundRef.current = false;
+            setNotFound(false);
+            void poll();
+          }}
+          className="px-4 py-2 text-xs font-medium rounded-lg bg-surface border border-border text-primary hover:bg-surface/80 transition-colors"
+        >
+          Retry Connection
+        </button>
       </div>
     );
   }

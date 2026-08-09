@@ -102,8 +102,6 @@ async function storeJob(job: BrokerJob): Promise<void> {
 export async function getJob(jobId: string): Promise<BrokerJob | null> {
   const inMemory = jobs.get(jobId);
   if (usesSharedStore()) {
-    // Prefer the freshest copy: another serverless instance may have advanced
-    // the job (e.g. after a user-signed payment) since this instance cached it.
     try {
       let shared = await loadSharedJobs();
       let fromShared = shared.find((j) => j.id === jobId);
@@ -111,17 +109,18 @@ export async function getJob(jobId: string): Promise<BrokerJob | null> {
         shared = await loadSharedJobs(true);
         fromShared = shared.find((j) => j.id === jobId);
       }
-      if (fromShared && (!inMemory || new Date(fromShared.updatedAt) > new Date(inMemory.updatedAt))) {
-        jobs.set(jobId, fromShared);
-        return fromShared;
+      if (fromShared) {
+        if (!inMemory || new Date(fromShared.updatedAt) > new Date(inMemory.updatedAt)) {
+          jobs.set(jobId, fromShared);
+          return fromShared;
+        }
+        return inMemory;
       }
     } catch {
       // blob unavailable — fall through to local sources
     }
-    if (inMemory) return inMemory;
-  } else if (inMemory) {
-    return inMemory;
   }
+  if (inMemory) return inMemory;
   const fromDisk = loadJobs().find((j) => j.id === jobId);
   if (fromDisk) {
     jobs.set(jobId, fromDisk);
