@@ -10,6 +10,8 @@ const STOP_WORDS = new Set([
   'the', 'and', 'for', 'with', 'you', 'get', 'give', 'show', 'check', 'look',
   'a', 'an', 'of', 'to', 'on', 'my', 'i', 'want', 'please', 'just', 'can', 'me',
   'pay', 'paid', 'price', 'usdc', 'this', 'that', 'use', 'using', 'have',
+  'token', 'tokens', 'wallet', 'wallets', 'defi', 'chain', 'base', 'ethereum',
+  'workflow', 'create', 'build', 'sends', 'send', 'alert', 'alerts',
 ]);
 
 function normalizeTokens(text: string): string[] {

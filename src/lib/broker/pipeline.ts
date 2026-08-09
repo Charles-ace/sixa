@@ -16,7 +16,7 @@ for (const job of loadJobs()) {
   jobs.set(job.id, job);
 }
 const MAX_JOBS = 50;
-const MIN_MATCH_SCORE = 3;
+const MIN_MATCH_SCORE = 4;
 
 export const brokerMcpClient = new BrokerMcpClient();
 
