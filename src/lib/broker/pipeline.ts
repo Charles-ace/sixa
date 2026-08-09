@@ -595,6 +595,7 @@ async function executeAndVerify(
 async function attemptGenerationFallback(job: BrokerJob, client: BrokerMcpClient): Promise<void> {
   pushAudit(job, 'fallback_generation', 'No reliable marketplace listing remains; generating a workflow as last resort.');
   setStatus(job, 'executing');
+  await storeJob(job);
   const result = await generateAndRun(client, job.spec.goal, normalizeParams(job.spec.params, null));
   if (result.execution.completed) {
     job.execution = result.execution;
