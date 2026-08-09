@@ -100,33 +100,8 @@ async function storeJob(job: BrokerJob): Promise<void> {
 }
 
 export async function getJob(jobId: string): Promise<BrokerJob | null> {
-  const inMemory = jobs.get(jobId);
-  if (usesSharedStore()) {
-    try {
-      let shared = await loadSharedJobs();
-      let fromShared = shared.find((j) => j.id === jobId);
-      if (!fromShared) {
-        shared = await loadSharedJobs(true);
-        fromShared = shared.find((j) => j.id === jobId);
-      }
-      if (fromShared) {
-        if (!inMemory || new Date(fromShared.updatedAt) > new Date(inMemory.updatedAt)) {
-          jobs.set(jobId, fromShared);
-          return fromShared;
-        }
-        return inMemory;
-      }
-    } catch {
-      // blob unavailable — fall through to local sources
-    }
-  }
-  if (inMemory) return inMemory;
-  const fromDisk = loadJobs().find((j) => j.id === jobId);
-  if (fromDisk) {
-    jobs.set(jobId, fromDisk);
-    return fromDisk;
-  }
-  return null;
+  const all = await listJobs();
+  return all.find((j) => j.id === jobId) ?? null;
 }
 
 export async function listJobs(): Promise<BrokerJob[]> {
