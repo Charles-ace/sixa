@@ -12,7 +12,7 @@ async function main() {
 
   console.log("\n=== get(sixa/broker-jobs.json) default auth ===");
   try {
-    const res = await get("sixa/broker-jobs.json");
+    const res = await get("sixa/broker-jobs.json", { access: "private" });
     if (!res || res.statusCode !== 200 || !res.stream) {
       console.log(`status ${res?.statusCode ?? "?"} stream=${Boolean(res?.stream)}`);
       return;

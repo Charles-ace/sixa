@@ -5,7 +5,7 @@ import { put, get, list, del } from "@vercel/blob";
 async function main() {
   console.log("=== probe: which access mode works on this (private) store ===");
   const marker = `probe-${Date.now()}`;
-  for (const access of ["token", "private"] as const) {
+  for (const access of ["private"] as const) {
     try {
       const up = await put("sixa/__probe.json", JSON.stringify({ marker, access }), { access, addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 0 });
       const g = await get("sixa/__probe.json", { access });
