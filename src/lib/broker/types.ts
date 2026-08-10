@@ -191,6 +191,7 @@ export type AuditEventType =
   | 'job_completed'
   | 'job_failed'
   | 'path_decided'
+  | 'user_authorized'
   | 'completion_verified'
   | 'completion_unverified';
 
@@ -238,6 +239,12 @@ export interface BrokerJob {
   decision: JobDecision | null;
   decisionRecord: DecisionRecord | null;
   proof: CompletionProof | null;
+  pendingFallback: {
+    workflowId: string;
+    name: string;
+    buildPath: 'ai' | 'template' | 'none';
+    workflowCreatedAt: string;
+  } | null;
 }
 
 export interface BrokerModule {

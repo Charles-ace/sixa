@@ -4,7 +4,7 @@ import { select, bestMatchScore } from './select';
 import { intake } from './intake';
 import { basePublicClient, confirmOnChainReceipt, payX402, payerMode } from './pay';
 import { verifyExecution } from './verify';
-import { generateAndRun, type GeneratedWorkflowResult } from './generate';
+import { createFallbackWorkflow, executeFallbackWorkflow, type FallbackWorkflowRef } from './generate';
 import { after } from 'next/server';
 import { generateId } from '@/lib/utils';
 import { ProviderError } from '@/lib/keeperhub/providers/http';
@@ -75,21 +75,22 @@ function newJob(id: string, spec: JobSpec, input: {
     decision: null,
     decisionRecord: null,
     proof: null,
+    pendingFallback: null,
   };
   pushAudit(job, 'job_created', `Job ${id} created.`, { goal: spec.goal, budgetUsdc: spec.budgetUsdc, chainId: spec.chainId, payMode: job.payMode });
   return job;
 }
 
-function pushAudit(job: BrokerJob, type: AuditEventType, message: string, data?: Record<string, unknown> | null): void {
+export function pushAudit(job: BrokerJob, type: AuditEventType, message: string, data?: Record<string, unknown> | null): void {
   job.audit.push({ id: generateId(), jobId: job.id, type, message, data: data ?? null, timestamp: new Date().toISOString() });
 }
 
-function setStatus(job: BrokerJob, status: BrokerJob['status']): void {
+export function setStatus(job: BrokerJob, status: BrokerJob['status']): void {
   job.status = status;
   job.updatedAt = new Date().toISOString();
 }
 
-async function storeJob(job: BrokerJob): Promise<void> {
+export async function storeJob(job: BrokerJob): Promise<void> {
   jobs.set(job.id, job);
   if (jobs.size > MAX_JOBS) {
     const oldest = [...jobs.keys()].sort((a, b) => {
@@ -129,18 +130,18 @@ function buildDiscoverCall(passes: DiscoverPass[], candidates: ListingCandidate[
   };
 }
 
-function buildGenerateCall(goal: string, params: Record<string, unknown>, result: GeneratedWorkflowResult): CallRecord {
+function buildGenerateCall(goal: string, params: Record<string, unknown>, ref: FallbackWorkflowRef): CallRecord {
   return {
     request: { method: 'tools/call', name: 'ai_generate_workflow', arguments: { prompt: goal }, params },
     response: {
-      workflowId: result.workflowId,
-      name: result.name,
-      buildPath: result.buildPath,
-      workflowCreatedAt: result.workflowCreatedAt,
-      executionId: result.execution.executionId,
-      status: result.execution.status,
-      verified: result.execution.verified,
-      executionTxHash: result.execution.executionTxHash ?? null,
+      workflowId: ref.workflowId,
+      name: ref.name,
+      buildPath: ref.buildPath,
+      workflowCreatedAt: ref.workflowCreatedAt,
+      executionId: ref.execution?.executionId ?? null,
+      status: ref.execution?.status ?? null,
+      verified: ref.execution?.verified ?? false,
+      executionTxHash: ref.execution?.executionTxHash ?? null,
     },
   };
 }
@@ -731,54 +732,85 @@ async function attemptGenerationFallback(job: BrokerJob, client: BrokerMcpClient
   pushAudit(job, 'fallback_generation', 'No reliable marketplace listing remains; generating a workflow as last resort.');
   setStatus(job, 'executing');
   await storeJob(job);
-  const result = await generateAndRun(client, job.spec.goal, normalizeParams(job.spec.params, null));
-  if (result.workflowId) {
+
+  const ref = await createFallbackWorkflow(client, job.spec.goal);
+  if (ref.buildPath === 'none' && ref.execution) {
+    job.execution = ref.execution;
+    pushAudit(job, 'fallback_executed', 'Generated fallback failed.', { error: ref.execution.error });
+    job.error = ref.execution.error ?? 'Fallback workflow generation failed.';
+    setStatus(job, 'failed');
+    job.report = buildFailureReport(job);
+    await storeJob(job);
+    return;
+  }
+
+  const params = normalizeParams(job.spec.params, null);
+
+  // Enforce explicit user authorization before any fallback execution starts.
+  if (job.payMode === 'user' || job.payMode === 'real') {
+    job.pendingFallback = {
+      workflowId: ref.workflowId,
+      name: ref.name,
+      buildPath: ref.buildPath,
+      workflowCreatedAt: ref.workflowCreatedAt,
+    };
     recordDecision(job, {
       source: 'generated_fallback',
-      workflow_id: result.workflowId,
-      workflow_created_at: result.workflowCreatedAt || new Date().toISOString(),
+      workflow_id: ref.workflowId,
+      workflow_created_at: ref.workflowCreatedAt || new Date().toISOString(),
       workflow_owner_address: null, // KeeperHub's create response does not expose the org wallet address
       discover_call: discoverCall,
-      generate_call: buildGenerateCall(job.spec.goal, normalizeParams(job.spec.params, null), result),
+      generate_call: buildGenerateCall(job.spec.goal, params, ref),
     });
-
-    // Enforce explicit user confirmation pause for all fallback workflows before execution
-    if (job.payMode === 'user' || job.payMode === 'real') {
-      pushAudit(job, 'fallback_generation', 'Generated fallback workflow requires explicit user authorization before execution.', {
-        workflowId: result.workflowId,
-        name: result.name,
-        buildPath: result.buildPath,
-        payMode: job.payMode,
-      });
-      setStatus(job, 'awaiting_payment');
-      await storeJob(job);
-    }
+    pushAudit(job, 'fallback_generation', 'Generated fallback workflow requires explicit user authorization before execution.', {
+      workflowId: ref.workflowId,
+      name: ref.name,
+      buildPath: ref.buildPath,
+      payMode: job.payMode,
+    });
+    setStatus(job, 'awaiting_payment');
+    await storeJob(job);
+    return;
   }
-  if (result.execution.verified) {
-    job.execution = result.execution;
-    if (result.buildPath === 'template') {
+
+  const execution = await executeFallbackWorkflow(client, ref.workflowId, params);
+  recordDecision(job, {
+    source: 'generated_fallback',
+    workflow_id: ref.workflowId,
+    workflow_created_at: ref.workflowCreatedAt || new Date().toISOString(),
+    workflow_owner_address: null, // KeeperHub's create response does not expose the org wallet address
+    discover_call: discoverCall,
+    generate_call: buildGenerateCall(job.spec.goal, params, { ...ref, execution }),
+  });
+  await applyFallbackExecution(job, ref, execution);
+}
+
+async function applyFallbackExecution(job: BrokerJob, ref: FallbackWorkflowRef, execution: ExecutionResult): Promise<void> {
+  job.execution = execution;
+  if (execution.verified) {
+    if (ref.buildPath === 'template') {
       pushAudit(job, 'verification_passed', 'Workflow built from a marketplace template; execution confirmed via KeeperHub execution status.', {
-        executionId: result.execution.executionId,
-        workflowId: result.workflowId,
-        status: result.execution.status,
+        executionId: execution.executionId,
+        workflowId: ref.workflowId,
+        status: execution.status,
       });
       setStatus(job, 'completed');
       pushAudit(job, 'job_completed', 'Job completed — the agent built a new workflow from a template.', {
-        workflowId: result.workflowId,
-        name: result.name,
-        buildPath: result.buildPath,
+        workflowId: ref.workflowId,
+        name: ref.name,
+        buildPath: ref.buildPath,
       });
     } else {
       pushAudit(job, 'verification_passed', 'Generated workflow verified via KeeperHub execution status.', {
-        executionId: result.execution.executionId,
-        status: result.execution.status,
-        workflowId: result.workflowId,
+        executionId: execution.executionId,
+        status: execution.status,
+        workflowId: ref.workflowId,
       });
       setStatus(job, 'completed');
       pushAudit(job, 'job_completed', 'Job completed via generated fallback workflow.', {
-        workflowId: result.workflowId,
-        name: result.name,
-        buildPath: result.buildPath,
+        workflowId: ref.workflowId,
+        name: ref.name,
+        buildPath: ref.buildPath,
       });
     }
     buildCompletionProof(job);
@@ -787,27 +819,68 @@ async function attemptGenerationFallback(job: BrokerJob, client: BrokerMcpClient
     await storeJob(job);
     return;
   }
-  if (result.execution.executionId) {
+  if (execution.executionId) {
     // The workflow was genuinely built and launched, but KeeperHub never
     // confirmed completion in the polling window. Record it honestly as an
     // unverified launch, never as a verified success.
-    job.execution = result.execution;
     pushAudit(job, 'verification_failed', 'Workflow launched but completion was NOT confirmed within the polling window.', {
-      executionId: result.execution.executionId,
-      workflowId: result.workflowId,
-      error: result.execution.error,
+      executionId: execution.executionId,
+      workflowId: ref.workflowId,
+      error: execution.error,
       hint: 'Confirm the run in the KeeperHub dashboard before trusting the outcome.',
     });
     setStatus(job, 'failed');
-    job.error = result.execution.error ?? 'Workflow launch unconfirmed.';
+    job.error = execution.error ?? 'Workflow launch unconfirmed.';
     buildCompletionProof(job);
     printCompletion(job);
     job.report = buildFailureReport(job);
     await storeJob(job);
     return;
   }
-  pushAudit(job, 'fallback_executed', 'Generated fallback failed.', { error: result.execution.error });
-  throw new ProviderError({ code: 'all_fallbacks_failed', message: result.execution.error ?? 'All fallbacks failed.' });
+  pushAudit(job, 'fallback_executed', 'Generated fallback failed.', { error: execution.error });
+  throw new ProviderError({ code: 'all_fallbacks_failed', message: execution.error ?? 'All fallbacks failed.' });
+}
+
+/**
+ * Called by the resume route after the user explicitly authorizes a paused
+ * fallback workflow: launches the stored workflow, polls it, and records the
+ * honest terminal outcome. Returns synchronously with the job paused-state
+ * transition; the background continuation keeps the pipeline alive.
+ */
+export async function resumeFallbackAfterAuthorization(jobId: string): Promise<{ ok: boolean; job?: BrokerJob; code?: string; error?: string }> {
+  const job = await getJob(jobId);
+  if (!job) return { ok: false, code: 'job_not_found', error: 'Job not found.' };
+  if (job.status !== 'awaiting_payment') {
+    return { ok: false, code: 'invalid_state', error: 'Job is not awaiting authorization.' };
+  }
+  if (job.payMode !== 'user' && job.payMode !== 'real') {
+    return { ok: false, code: 'not_paused', error: 'This job does not require fallback authorization.' };
+  }
+  const ref = job.pendingFallback;
+  if (!ref) {
+    return { ok: false, code: 'no_pending_workflow', error: 'No pending fallback workflow found for this job.' };
+  }
+
+  pushAudit(job, 'user_authorized', 'User explicitly authorized fallback workflow execution from UI.');
+  setStatus(job, 'executing');
+  await storeJob(job);
+
+  after(async () => {
+    const execution = await executeFallbackWorkflow(brokerMcpClient, ref.workflowId, normalizeParams(job.spec.params, null));
+    const current = await getJob(jobId);
+    if (!current) return;
+    try {
+      await applyFallbackExecution(current, { ...ref, execution: null }, execution);
+    } catch (error) {
+      current.error = error instanceof Error ? error.message : 'Fallback execution failed.';
+      setStatus(current, 'failed');
+      pushAudit(current, 'job_failed', 'Fallback execution failed.', { error: current.error });
+      current.report = buildFailureReport(current);
+      await storeJob(current);
+    }
+  });
+
+  return { ok: true, job };
 }
 
 function normalizeParams(params: Record<string, unknown>, inputSchema: Record<string, unknown> | null): Record<string, unknown> {

@@ -61,6 +61,7 @@ function makeJob(status: BrokerJob['status']): BrokerJob {
     decision: null,
     decisionRecord: null,
     proof: null,
+    pendingFallback: null,
   };
 }
 

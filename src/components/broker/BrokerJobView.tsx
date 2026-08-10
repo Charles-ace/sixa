@@ -267,6 +267,45 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
           </div>
         )}
 
+        {job.status === 'awaiting_payment' && !job.quote && (
+          <div className="rounded-xl bg-black/[0.04] border border-border p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <ScrollText className="w-4 h-4 text-foreground" />
+              <p className="text-sm font-medium text-foreground">Authorize Fallback Workflow Execution</p>
+            </div>
+            <p className="text-xs text-secondary mb-3">
+              No existing marketplace listing matched your query. A fallback workflow has been constructed. Please review and give explicit authorization before execution starts.
+            </p>
+            <button
+              onClick={async () => {
+                setPayState({ status: 'submitting' });
+                try {
+                  const res = await fetch(`/api/broker/jobs/${job.id}/resume`, { method: 'POST' });
+                  if (!res.ok) throw new Error('Authorization failed');
+                  setPayState({ status: 'idle' });
+                } catch {
+                  setPayState({ status: 'error', error: 'Failed to authorize fallback execution.' });
+                }
+              }}
+              disabled={payState.status === 'submitting'}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-foreground text-background text-sm font-medium hover:opacity-85 active:scale-[0.98] transition-all disabled:opacity-50"
+            >
+              {payState.status === 'submitting' ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" /> Authorizing workflow…
+                </>
+              ) : (
+                <>
+                  <ArrowRight className="w-4 h-4" /> Authorize & Execute Fallback Workflow
+                </>
+              )}
+            </button>
+            {payState.status === 'error' && (
+              <p className="mt-2 text-xs text-error">{payState.error}</p>
+            )}
+          </div>
+        )}
+
         <div>
           <p className="text-sm text-foreground mb-1">{job.spec.goal}</p>
           <p className="text-xs text-muted-foreground">

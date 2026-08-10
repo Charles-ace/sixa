@@ -1,4 +1,6 @@
 import { signToken, verifyToken, sha256Hex } from '@/lib/auth/token';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { join } from 'path';
 
 export const API_KEY_PREFIX = 'sk_live_';
 export const API_KEY_TTL_SECONDS = 365 * 24 * 60 * 60;
@@ -22,8 +24,63 @@ export interface ApiKeyRecord {
   revoked: boolean;
 }
 
-const revokedKeys = new Set<string>();
-const issuedByAccount = new Map<string, ApiKeyRecord[]>();
+const STORAGE_DIR = process.env.NODE_ENV === 'production' ? '/tmp/sixa_keys' : join(process.cwd(), '.sixa_keys');
+const KEYS_FILE = join(STORAGE_DIR, 'issued_keys.json');
+const REVOKED_FILE = join(STORAGE_DIR, 'revoked_keys.json');
+
+function ensureStorageDir() {
+  try {
+    if (!existsSync(STORAGE_DIR)) {
+      mkdirSync(STORAGE_DIR, { recursive: true });
+    }
+  } catch {}
+}
+
+function loadRevokedKeys(): Set<string> {
+  ensureStorageDir();
+  try {
+    if (existsSync(REVOKED_FILE)) {
+      const data = JSON.parse(readFileSync(REVOKED_FILE, 'utf-8'));
+      return new Set(Array.isArray(data) ? data : []);
+    }
+  } catch {}
+  return new Set();
+}
+
+function saveRevokedKeys(set: Set<string>) {
+  ensureStorageDir();
+  try {
+    writeFileSync(REVOKED_FILE, JSON.stringify(Array.from(set)), 'utf-8');
+  } catch {}
+}
+
+function loadIssuedKeys(): Map<string, ApiKeyRecord[]> {
+  ensureStorageDir();
+  const map = new Map<string, ApiKeyRecord[]>();
+  try {
+    if (existsSync(KEYS_FILE)) {
+      const obj = JSON.parse(readFileSync(KEYS_FILE, 'utf-8'));
+      for (const [k, v] of Object.entries(obj)) {
+        if (Array.isArray(v)) map.set(k, v as ApiKeyRecord[]);
+      }
+    }
+  } catch {}
+  return map;
+}
+
+function saveIssuedKeys(map: Map<string, ApiKeyRecord[]>) {
+  ensureStorageDir();
+  try {
+    const obj: Record<string, ApiKeyRecord[]> = {};
+    for (const [k, v] of map.entries()) {
+      obj[k] = v;
+    }
+    writeFileSync(KEYS_FILE, JSON.stringify(obj, null, 2), 'utf-8');
+  } catch {}
+}
+
+const revokedKeys = loadRevokedKeys();
+const issuedByAccount = loadIssuedKeys();
 
 export async function issueApiKey(input: {
   sub: string;
@@ -57,6 +114,7 @@ export async function issueApiKey(input: {
   const existing = issuedByAccount.get(input.sub) ?? [];
   existing.push(record);
   issuedByAccount.set(input.sub, existing);
+  saveIssuedKeys(issuedByAccount);
 
   return { raw: `${API_KEY_PREFIX}${token}`, record };
 }
@@ -77,6 +135,8 @@ export function revokeApiKey(sub: string, kid: string): boolean {
   if (!record) return false;
   record.revoked = true;
   revokedKeys.add(kid);
+  saveRevokedKeys(revokedKeys);
+  saveIssuedKeys(issuedByAccount);
   return true;
 }
 
