@@ -416,7 +416,7 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
                     ? 'INDEPENDENTLY VERIFIED'
                     : job.status === 'completed' && !job.execution.failed
                       ? 'WORKFLOW LAUNCHED & RUNNING'
-                      : job.execution.failed
+                      : job.execution.failed || job.status === 'failed'
                         ? 'UNVERIFIED'
                         : 'EXECUTING'}
               </span>

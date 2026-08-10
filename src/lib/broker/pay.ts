@@ -1,12 +1,13 @@
 import { createPublicClient, createWalletClient, decodeEventLog, http, parseAbi } from 'viem';
 import { waitForTransactionReceipt } from 'viem/actions';
 import { privateKeyToAccount } from 'viem/accounts';
-import { base } from 'viem/chains';
+import { base, baseSepolia } from 'viem/chains';
 import { ProviderError } from '@/lib/keeperhub/providers/http';
 import { assetDecimals, isNativeAsset, type OnChainReceipt, type PaymentQuote, type PaymentMode, type PaymentRecord } from './types';
 
 export const USDC_BASE = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
 export const USDC_DECIMALS = 6;
+export const USDC_BASE_SEPOLIA = '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
 
 const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 
@@ -41,7 +42,7 @@ export function effectivePayMode(requested: PaymentMode | undefined): PaymentMod
     throw new ProviderError({
       code: 'payer_not_configured',
       message: 'Real payment requested but BROKER_PAYER_PRIVATE_KEY is not configured.',
-      hint: 'Set BROKER_PAYER_PRIVATE_KEY and BROKER_PAYER_CHAIN_ID=8453 to enable real x402 payments.',
+      hint: 'Set BROKER_PAYER_PRIVATE_KEY and BROKER_PAYER_CHAIN_ID=84532 to enable real x402 payments on testnet.',
     });
   }
   if (requested === 'simulated' && isPayerConfigured()) {
@@ -60,9 +61,12 @@ function parseUnits(amountUnits: string): bigint {
 }
 
 export function basePublicClient(rpcUrl?: string) {
+  const chainId = Number(process.env.BROKER_PAYER_CHAIN_ID ?? 84532);
+  const targetChain = chainId === 8453 ? base : baseSepolia;
+  const defaultRpc = chainId === 8453 ? 'https://mainnet.base.org' : 'https://sepolia.base.org';
   return createPublicClient({
-    chain: base,
-    transport: http(rpcUrl ?? process.env.BROKER_PAYER_RPC_URL ?? 'https://mainnet.base.org'),
+    chain: targetChain,
+    transport: http(rpcUrl ?? process.env.BROKER_PAYER_RPC_URL ?? defaultRpc),
   });
 }
 
@@ -88,12 +92,12 @@ export async function payX402(quote: PaymentQuote, mode: PaymentMode): Promise<P
   }
 
   const account = privateKeyToAccount(privateKey as `0x${string}`);
-  const chainId = Number(process.env.BROKER_PAYER_CHAIN_ID ?? 8453);
-  const chain = chainId === 1 ? undefined : chainId === 8453 ? base : undefined;
+  const chainId = Number(process.env.BROKER_PAYER_CHAIN_ID ?? 84532);
+  const chain = chainId === 8453 ? base : chainId === 84532 ? baseSepolia : undefined;
   if (!chain) {
     throw new ProviderError({
       code: 'unsupported_payer_chain',
-      message: `BROKER_PAYER_CHAIN_ID=${chainId} is not supported. Use 8453 (Base) for x402.`,
+      message: `BROKER_PAYER_CHAIN_ID=${chainId} is not supported. Use 8453 (Base) or 84532 (Base Sepolia) for x402.`,
     });
   }
 

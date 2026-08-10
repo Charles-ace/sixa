@@ -121,6 +121,50 @@ export interface ExecutionResult {
   verified: boolean;
   receipts: string[];
   simulated?: boolean;
+  /** Base tx hash of the actual on-chain action performed by the workflow. */
+  executionTxHash?: string | null;
+}
+
+export interface CheckResultDetail {
+  ok: boolean;
+  how: string;
+  detail: string | null;
+}
+
+/**
+ * Verdict for a job that reached a terminal success state. A job is only
+ * 'verified' when BOTH the x402 payment settlement and the on-chain
+ * execution were independently confirmed. Anything missing/unconfirmed is
+ * 'unverified' with the exact failing check named.
+ */
+export interface CompletionProof {
+  status: 'verified' | 'unverified';
+  payment_tx_hash: string | null;
+  payment_confirmed: CheckResultDetail;
+  execution_tx_hash: string | null;
+  execution_confirmed: CheckResultDetail;
+  workflow_id: string | null;
+}
+
+export type DecisionSource = 'marketplace_existing' | 'generated_fallback';
+
+export interface CallRecord {
+  request: Record<string, unknown>;
+  response: Record<string, unknown>;
+}
+
+/**
+ * Explicit per-job decision record: which path was taken, the workflow it
+ * resolved to, and the actual discover/generate calls sent to KeeperHub
+ * with their responses. Written once per job, before execution starts.
+ */
+export interface JobDecision {
+  source: DecisionSource;
+  workflow_id: string;
+  workflow_created_at: string;
+  workflow_owner_address: string | null;
+  discover_call: CallRecord;
+  generate_call: CallRecord | null;
 }
 
 export type AuditEventType =
@@ -145,7 +189,10 @@ export type AuditEventType =
   | 'fallback_executed'
   | 'candidate_failed'
   | 'job_completed'
-  | 'job_failed';
+  | 'job_failed'
+  | 'path_decided'
+  | 'completion_verified'
+  | 'completion_unverified';
 
 export interface AuditEvent {
   id: string;
@@ -154,6 +201,21 @@ export interface AuditEvent {
   message: string;
   data: Record<string, unknown> | null;
   timestamp: string;
+}
+
+export interface DecisionRecord {
+  source: 'marketplace_existing' | 'generated_fallback';
+  workflow_id: string;
+  workflow_created_at: string;
+  workflow_owner_address: string;
+  discover_call: {
+    request: { query: string; chainId: number | null };
+    response: { candidateCount: number; candidates: Array<{ id: string; slug: string; name: string; listedAt: string; organizationId: string }> };
+  };
+  generate_call: {
+    request: { goal: string };
+    response: { workflowId: string; name: string; buildPath: string } | null;
+  } | null;
 }
 
 export interface BrokerJob {
@@ -173,6 +235,9 @@ export interface BrokerJob {
   error: string | null;
   forcedSlug: string | null;
   payMode: PaymentMode;
+  decision: JobDecision | null;
+  decisionRecord: DecisionRecord | null;
+  proof: CompletionProof | null;
 }
 
 export interface BrokerModule {

@@ -5,6 +5,7 @@ export interface GeneratedWorkflowResult {
   workflowId: string;
   name: string;
   buildPath: 'ai' | 'template' | 'none';
+  workflowCreatedAt: string;
   execution: ExecutionResult;
 }
 
@@ -22,11 +23,13 @@ export async function generateAndRun(
   let workflowId: string;
   let name: string;
   let buildPath: 'ai' | 'template';
+  let workflowCreatedAt = '';
   try {
     const generated = await client.generateAndCreateWorkflow(goal);
     workflowId = generated.workflowId;
     name = generated.name;
     buildPath = 'ai';
+    workflowCreatedAt = new Date().toISOString();
   } catch (aiError) {
     // AI prompt disabled on this organization — deploy a matching
     // pre-built template instead so the agent still delivers a workflow.
@@ -39,6 +42,7 @@ export async function generateAndRun(
       workflowId = deployed.workflowId;
       name = deployed.name;
       buildPath = 'template';
+      workflowCreatedAt = new Date().toISOString();
     } catch (templateError) {
       const aiMessage = aiError instanceof Error ? aiError.message : String(aiError);
       const tplMessage = templateError instanceof Error ? templateError.message : String(templateError);
@@ -46,6 +50,7 @@ export async function generateAndRun(
         workflowId: '',
         name: '',
         buildPath: 'none',
+        workflowCreatedAt: '',
         execution: {
           executionId: null,
           status: 'failed',
@@ -71,15 +76,17 @@ export async function generateAndRun(
         workflowId,
         name,
         buildPath,
+        workflowCreatedAt,
         execution: {
           executionId: executed.executionId,
-          status: poll.status === 'timeout' ? 'running' : poll.status,
+          status: poll.status === 'timeout' ? 'timeout' : poll.status,
           output: null,
-          completed: true,
+          completed: false,
           failed: false,
-          error: null,
+          error: 'The workflow was launched, but KeeperHub did not confirm completion within the polling window — confirm it in the KeeperHub dashboard.',
           verified: false,
           receipts: [],
+          executionTxHash: poll.transactionHash ?? executed.transactionHash ?? null,
         },
       };
     }
@@ -87,6 +94,7 @@ export async function generateAndRun(
       workflowId,
       name,
       buildPath,
+      workflowCreatedAt,
       execution: {
         executionId: executed.executionId,
         status: poll.status,
@@ -96,6 +104,7 @@ export async function generateAndRun(
         error: poll.error,
         verified: poll.completed,
         receipts: [],
+        executionTxHash: poll.transactionHash ?? executed.transactionHash ?? null,
       },
     };
   } catch (error) {
@@ -103,6 +112,7 @@ export async function generateAndRun(
       workflowId,
       name,
       buildPath,
+      workflowCreatedAt,
       execution: {
         executionId: null,
         status: 'failed',

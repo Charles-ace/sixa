@@ -6,7 +6,6 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { BrokerIntake } from '@/components/broker/BrokerIntake';
 import { BrokerJobView } from '@/components/broker/BrokerJobView';
-import { BrokerAuditLog } from '@/components/broker/BrokerAuditLog';
 
 export default function AppPage() {
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
@@ -38,10 +37,6 @@ export default function AppPage() {
             <>
               <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
                 <BrokerJobView jobId={activeJobId} active />
-              </motion.div>
-
-              <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }}>
-                <BrokerAuditLog jobId={activeJobId} />
               </motion.div>
             </>
           )}

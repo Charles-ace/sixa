@@ -231,7 +231,7 @@ export class BrokerMcpClient {
    * (x402 v2) instead of executing — the payment must be made before
    * execution is allowed.
    */
-  async callWorkflow(slug: string, input: Record<string, unknown>): Promise<{ quote: PaymentQuote | null; executionId: string | null; status: string; output: string | null; error: string | null }> {
+  async callWorkflow(slug: string, input: Record<string, unknown>): Promise<{ quote: PaymentQuote | null; executionId: string | null; status: string; output: string | null; error: string | null; transactionHash: string | null }> {
     this.requireConfigured();
     await this.ensureInitialized();
     const parsed = await this.callTool('call_workflow', { slug, inputs: input });
@@ -243,7 +243,7 @@ export class BrokerMcpClient {
 
     if (parsed.isError) {
       if (quote) {
-        return { quote, executionId: null, status: 'payment_required', output: null, error: null };
+        return { quote, executionId: null, status: 'payment_required', output: null, error: null, transactionHash: null };
       }
       return {
         quote: null,
@@ -251,6 +251,7 @@ export class BrokerMcpClient {
         status: 'failed',
         output: null,
         error: text.replace(/^Error:\s*/i, '') || 'Workflow call failed.',
+        transactionHash: null,
       };
     }
 
@@ -262,10 +263,11 @@ export class BrokerMcpClient {
       status: (data?.status as string) ?? (executionId ? 'running' : 'completed'),
       output: typeof data?.output === 'object' || typeof data?.output === 'string' ? JSON.stringify(data.output) : null,
       error: null,
+      transactionHash: data ? stringField(data, 'transactionHash') ?? stringField(data, 'txHash') ?? null : null,
     };
   }
 
-  async executeOrgWorkflow(workflowId: string, input: Record<string, unknown>, opts?: { idempotencyKey?: string }): Promise<{ executionId: string | null; status: string }> {
+  async executeOrgWorkflow(workflowId: string, input: Record<string, unknown>, opts?: { idempotencyKey?: string }): Promise<{ executionId: string | null; status: string; transactionHash: string | null }> {
     this.requireConfigured();
     await this.ensureInitialized();
     const parsed = await this.callTool('execute_workflow', {
@@ -277,37 +279,70 @@ export class BrokerMcpClient {
     return {
       executionId: stringField(data, 'executionId') ?? null,
       status: (data.status as string) ?? 'pending',
+      transactionHash: stringField(data, 'transactionHash') ?? stringField(data, 'txHash') ?? null,
     };
   }
 
-  async getExecution(executionId: string, opts?: { includeData?: boolean }): Promise<{ status: string; output: string | null; error: string | null; completed: boolean; failed: boolean }> {
+  async getExecution(executionId: string, opts?: { includeData?: boolean }): Promise<{ status: string; output: string | null; error: string | null; completed: boolean; failed: boolean; transactionHash: string | null; transactionHashes: string[] }> {
     this.requireConfigured();
     await this.ensureInitialized();
     const parsed = await this.callTool('get_execution', { executionId, ...(opts?.includeData === false ? { includeData: false } : {}) });
     const data = parseJsonRecord(parsed.text) ?? {};
     const status = String(data.status ?? 'pending');
     const failed = data.failed === true || status === 'failed' || status === 'error';
-    const completed = data.completed === true || status === 'completed' || status === 'success';
+
+    // Extract transactionHashes array from KeeperHub get_execution response.
+    // The field may be an array of objects [{hash, chainId, nodeId, verified, receiptStatus, ...}]
+    // or a single string. Normalise to a string[].
+    const rawHashes = Array.isArray(data.transactionHashes)
+      ? (data.transactionHashes as unknown[]).map((h) =>
+          typeof h === 'string' ? h : (h as Record<string, unknown>)?.hash as string | undefined
+        ).filter(Boolean) as string[]
+      : [];
+    const singleHash = stringField(data, 'transactionHash') ?? stringField(data, 'txHash') ?? null;
+    const transactionHashes = rawHashes.length > 0 ? rawHashes : (singleHash ? [singleHash] : []);
+
+    // KeeperHub bug: a workflow whose write-action node is disabled returns
+    // status: "success" with transactionHashes: [] and only the trigger in the
+    // executionTrace. Treat this as a PHANTOM SUCCESS — the node did not run.
+    // Condition: status looks completed AND nodeStatuses are present (write wf)
+    // AND no transaction was emitted.
+    const nodeStatuses = Array.isArray(data.nodeStatuses) ? data.nodeStatuses : null;
+    const hasWriteNodes = nodeStatuses !== null && nodeStatuses.length > 1; // trigger + at least one action
+    const isPhantomSuccess =
+      (status === 'success' || data.completed === true) &&
+      hasWriteNodes &&
+      transactionHashes.length === 0 &&
+      !failed;
+
+    const completed = isPhantomSuccess
+      ? false // Don't treat disabled-node executions as complete
+      : (data.completed === true || status === 'completed' || status === 'success');
+
     return {
-      status,
+      status: isPhantomSuccess ? 'phantom_success' : status,
       output: data.output != null ? JSON.stringify(data.output) : null,
-      error: failed ? String(data.error ?? 'Execution failed.') : null,
+      error: isPhantomSuccess
+        ? 'Execution reported success but no on-chain transaction was emitted — a write action node may be disabled. Enable the node and retry.'
+        : (failed ? String(data.error ?? 'Execution failed.') : null),
       completed,
-      failed,
+      failed: isPhantomSuccess ? true : failed,
+      transactionHash: transactionHashes[0] ?? null,
+      transactionHashes,
     };
   }
 
-  async waitForExecution(executionId: string, maxPolls = MAX_POLLS): Promise<{ status: string; completed: boolean; failed: boolean; error: string | null }> {
+  async waitForExecution(executionId: string, maxPolls = MAX_POLLS): Promise<{ status: string; completed: boolean; failed: boolean; error: string | null; transactionHash: string | null; transactionHashes: string[] }> {
     let interval = POLL_INTERVAL_MS;
     for (let poll = 0; poll < maxPolls; poll += 1) {
       const state = await this.getExecution(executionId);
       if (state.completed || state.failed) {
-        return { status: state.status, completed: state.completed, failed: state.failed, error: state.error };
+        return { status: state.status, completed: state.completed, failed: state.failed, error: state.error, transactionHash: state.transactionHash, transactionHashes: state.transactionHashes };
       }
       await new Promise((resolve) => setTimeout(resolve, interval));
       interval = Math.min(interval * 2, 8000);
     }
-    return { status: 'timeout', completed: false, failed: true, error: 'Timed out waiting for execution to settle.' };
+    return { status: 'timeout', completed: false, failed: true, error: 'Timed out waiting for execution to settle.', transactionHash: null, transactionHashes: [] };
   }
 
   async generateAndCreateWorkflow(goal: string): Promise<{ workflowId: string; name: string }> {

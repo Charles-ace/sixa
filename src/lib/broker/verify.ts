@@ -17,7 +17,8 @@ export async function verifyExecution(
       failed: false,
       error: null,
       verified: true,
-      receipts: [],
+      receipts: pollResult.transactionHashes ?? [],
+      executionTxHash: pollResult.transactionHash ?? null,
     };
   }
 
@@ -29,7 +30,8 @@ export async function verifyExecution(
     failed: true,
     error: pollResult.error ?? 'Execution did not complete in the polling window.',
     verified: false,
-    receipts: [],
+    receipts: pollResult.transactionHashes ?? [],
+    executionTxHash: pollResult.transactionHash ?? null,
   };
 }
 

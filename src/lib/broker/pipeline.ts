@@ -1,15 +1,15 @@
 import { BrokerMcpClient } from './client';
-import { discover } from './discover';
+import { discover, type DiscoverPass } from './discover';
 import { select, bestMatchScore } from './select';
 import { intake } from './intake';
 import { basePublicClient, confirmOnChainReceipt, payX402, payerMode } from './pay';
 import { verifyExecution } from './verify';
-import { generateAndRun } from './generate';
+import { generateAndRun, type GeneratedWorkflowResult } from './generate';
 import { after } from 'next/server';
 import { generateId } from '@/lib/utils';
 import { ProviderError } from '@/lib/keeperhub/providers/http';
 import { loadJobs, loadSharedJobs, saveJobs, usesSharedStore } from './store';
-import { isNativeAsset, type AuditEvent, type AuditEventType, type BrokerJob, type ExecutionResult, type JobSpec, type ListingCandidate, type PaymentMode } from './types';
+import { isNativeAsset, type AuditEvent, type AuditEventType, type BrokerJob, type CallRecord, type CheckResultDetail, type CompletionProof, type ExecutionResult, type JobDecision, type JobSpec, type ListingCandidate, type PaymentMode } from './types';
 
 const jobs = new Map<string, BrokerJob>();
 for (const job of loadJobs()) {
@@ -72,6 +72,9 @@ function newJob(id: string, spec: JobSpec, input: {
     error: null,
     forcedSlug: input.forcedSlug ?? null,
     payMode: input.payMode ?? payerMode(),
+    decision: null,
+    decisionRecord: null,
+    proof: null,
   };
   pushAudit(job, 'job_created', `Job ${id} created.`, { goal: spec.goal, budgetUsdc: spec.budgetUsdc, chainId: spec.chainId, payMode: job.payMode });
   return job;
@@ -97,6 +100,141 @@ async function storeJob(job: BrokerJob): Promise<void> {
     for (const key of oldest) jobs.delete(key);
   }
   await saveJobs([...jobs.values()]);
+}
+
+// ---- explicit per-job decision record + completion verdict ----
+
+function compactCandidate(c: ListingCandidate): Record<string, unknown> {
+  return {
+    id: c.id,
+    slug: c.slug,
+    name: c.name,
+    priceUsdcPerCall: c.priceUsdcPerCall,
+    organizationId: c.organizationId,
+    chain: c.chain,
+    listedAt: c.listedAt,
+  };
+}
+
+function buildDiscoverCall(passes: DiscoverPass[], candidates: ListingCandidate[], error?: unknown): CallRecord {
+  return {
+    request: {
+      method: 'tools/call',
+      name: 'search_workflows',
+      params: passes,
+    },
+    response: error
+      ? { error: error instanceof Error ? error.message : String(error), count: 0, candidates: [] }
+      : { count: candidates.length, candidates: candidates.map(compactCandidate) },
+  };
+}
+
+function buildGenerateCall(goal: string, params: Record<string, unknown>, result: GeneratedWorkflowResult): CallRecord {
+  return {
+    request: { method: 'tools/call', name: 'ai_generate_workflow', arguments: { prompt: goal }, params },
+    response: {
+      workflowId: result.workflowId,
+      name: result.name,
+      buildPath: result.buildPath,
+      workflowCreatedAt: result.workflowCreatedAt,
+      executionId: result.execution.executionId,
+      status: result.execution.status,
+      verified: result.execution.verified,
+      executionTxHash: result.execution.executionTxHash ?? null,
+    },
+  };
+}
+
+function buildCompletionProof(job: BrokerJob): CompletionProof {
+  const paymentTx = job.payment?.txHash ?? null;
+  const paymentConfirmed: CheckResultDetail = (() => {
+    if (job.payment?.status !== 'paid' || !paymentTx) {
+      return {
+        ok: false,
+        how: 'Base x402 settlement',
+        detail: job.payment?.mode === 'simulated'
+          ? 'payment was simulated — no on-chain tx_hash exists'
+          : `payment.status=${job.payment?.status ?? 'none'} — no tx_hash recorded`,
+      };
+    }
+    const r = job.payment.receipt;
+    if (r && r.status === 'success' && r.matches.amount && r.matches.recipient) {
+      return {
+        ok: true,
+        how: 'Base block explorer receipt (confirmOnChainReceipt)',
+        detail: `block ${r.blockNumber}, ${r.confirmations} confirmations, amount/recipient match`,
+      };
+    }
+    return { ok: false, how: 'Base block explorer receipt', detail: 'receipt missing, reverted, or amount/recipient mismatch' };
+  })();
+
+  const execTx = job.execution?.executionTxHash ?? null;
+  const executionConfirmed: CheckResultDetail = (() => {
+    if (job.execution?.verified && job.execution.completed) {
+      return {
+        ok: true,
+        how: 'KeeperHub get_execution status endpoint',
+        detail: `status=${job.execution.status}, executionId=${job.execution.executionId ?? 'none'}`,
+      };
+    }
+    return {
+      ok: false,
+      how: 'KeeperHub get_execution status endpoint',
+      detail: `verified=${job.execution?.verified ?? false}, completed=${job.execution?.completed ?? false}${job.execution?.error ? `, error=${job.execution.error}` : ''}`,
+    };
+  })();
+
+  const checks: Array<{ name: string; ok: boolean }> = [
+    { name: 'payment_tx_hash present', ok: Boolean(paymentTx) },
+    { name: 'payment independently confirmed (Base block explorer)', ok: paymentConfirmed.ok },
+    { name: 'execution_tx_hash present', ok: Boolean(execTx) },
+    { name: 'execution confirmed via KeeperHub status endpoint', ok: executionConfirmed.ok },
+    { name: 'workflow_id present', ok: Boolean(job.decision?.workflow_id) },
+  ];
+  const failed = checks.filter((c) => !c.ok);
+  const status: CompletionProof['status'] = failed.length === 0 ? 'verified' : 'unverified';
+
+  const proof: CompletionProof = {
+    status,
+    payment_tx_hash: paymentTx,
+    payment_confirmed: paymentConfirmed,
+    execution_tx_hash: execTx,
+    execution_confirmed: executionConfirmed,
+    workflow_id: job.decision?.workflow_id ?? null,
+  };
+  job.proof = proof;
+  pushAudit(
+    job,
+    status === 'verified' ? 'completion_verified' : 'completion_unverified',
+    status === 'verified'
+      ? 'Completion verified — payment and execution independently confirmed.'
+      : `Completion UNVERIFIED — failing check${failed.length > 1 ? 's' : ''}: ${failed.map((f) => f.name).join('; ')}.`,
+    { status, checks }
+  );
+  return proof;
+}
+
+function printCompletion(job: BrokerJob): void {
+  const p = job.proof;
+  if (!p) return;
+  console.log('\n┌─ JOB COMPLETION REPORT ─────────────────────────────');
+  console.log(`│ job ${job.id}  source=${job.decision?.source ?? 'none'}  verdict=${p.status.toUpperCase()}`);
+  console.log(`│ payment_tx_hash   : ${p.payment_tx_hash ?? 'null'}`);
+  console.log(`│ execution_tx_hash : ${p.execution_tx_hash ?? 'null'}`);
+  console.log(`│ workflow_id       : ${p.workflow_id ?? 'null'}`);
+  console.log(`│ payment check     : ${p.payment_confirmed.ok ? 'OK' : 'FAILED'} — ${p.payment_confirmed.detail}`);
+  console.log(`│ execution check   : ${p.execution_confirmed.ok ? 'OK' : 'FAILED'} — ${p.execution_confirmed.detail}`);
+  console.log('└─────────────────────────────────────────────────────');
+}
+
+function recordDecision(job: BrokerJob, decision: JobDecision): void {
+  job.decision = decision;
+  pushAudit(job, 'path_decided', `Decision path: ${decision.source}.`, {
+    source: decision.source,
+    workflow_id: decision.workflow_id,
+    workflow_created_at: decision.workflow_created_at,
+    workflow_owner_address: decision.workflow_owner_address,
+  });
 }
 
 export async function getJob(jobId: string): Promise<BrokerJob | null> {
@@ -287,9 +425,15 @@ async function executePipeline(job: BrokerJob): Promise<void> {
   pushAudit(job, 'catalog_searched', 'Searching the live KeeperHub marketplace.', { query: job.spec.query, chainId: job.spec.chainId });
 
   let candidates: ListingCandidate[] = [];
+  let passes: DiscoverPass[] = [];
+  let discoverError: unknown = null;
   try {
-    candidates = await discover(job.spec, client);
+    const discovered = await discover(job.spec, client);
+    candidates = discovered.candidates;
+    passes = discovered.passes;
   } catch (error) {
+    discoverError = error;
+    passes = [{ query: job.spec.query, sort: 'popular', chainId: job.spec.chainId }];
     if (!job.forcedSlug) throw error;
     pushAudit(job, 'catalog_searched', 'Catalog search failed; falling back to forced listing.', { error: error instanceof Error ? error.message : 'unknown' });
   }
@@ -314,12 +458,13 @@ async function executePipeline(job: BrokerJob): Promise<void> {
     }
   }
 
+  const discoverCall = buildDiscoverCall(passes, candidates, discoverError ?? undefined);
   job.candidates = candidates;
   pushAudit(job, 'candidate_found', `Found ${candidates.length} candidates.`, { slugs: candidates.slice(0, 8).map((c) => c.slug) });
 
   if (candidates.length === 0) {
     pushAudit(job, 'fallback_generation', 'No marketplace listing matched the intent — generating a workflow instead.', { query: job.spec.query });
-    await attemptGenerationFallback(job, client);
+    await attemptGenerationFallback(job, client, discoverCall);
     return;
   }
 
@@ -331,13 +476,21 @@ async function executePipeline(job: BrokerJob): Promise<void> {
       slugs: candidates.slice(0, 8).map((c) => c.slug),
     });
     pushAudit(job, 'fallback_generation', `No marketplace listing genuinely matches the intent (best score ${bestScore.toFixed(1)}); generating a workflow as last resort.`);
-    await attemptGenerationFallback(job, client);
+    await attemptGenerationFallback(job, client, discoverCall);
     return;
   }
 
   setStatus(job, 'selecting');
   const selection = select(job.spec, candidates);
   job.selected = selection.selected;
+  recordDecision(job, {
+    source: 'marketplace_existing',
+    workflow_id: selection.selected.id || selection.selected.slug,
+    workflow_created_at: selection.selected.listedAt || job.createdAt,
+    workflow_owner_address: selection.selected.organizationId || null,
+    discover_call: discoverCall,
+    generate_call: null,
+  });
   pushAudit(job, 'selection_made', 'Selection decided.', {
     slug: selection.selected.slug,
     priceUsdcPerCall: selection.selected.priceUsdcPerCall,
@@ -367,7 +520,7 @@ async function executePipeline(job: BrokerJob): Promise<void> {
   }
 
   // Every live listing failed — generate a workflow as a last resort.
-  await attemptGenerationFallback(job, client);
+  await attemptGenerationFallback(job, client, discoverCall);
 }
 
 /**
@@ -485,6 +638,8 @@ async function quoteCandidate(job: BrokerJob, client: BrokerMcpClient, candidate
         });
         setStatus(job, 'completed');
         pushAudit(job, 'job_completed', 'Job completed (simulated payment path).', { slug: candidate.slug });
+        buildCompletionProof(job);
+        printCompletion(job);
         job.report = buildSuccessReport(job);
         await storeJob(job);
         return 'paused';
@@ -566,21 +721,46 @@ async function executeAndVerify(
 
   setStatus(job, 'completed');
   pushAudit(job, 'job_completed', 'Job completed.', { slug: candidate.slug });
+  buildCompletionProof(job);
+  printCompletion(job);
   job.report = buildSuccessReport(job);
   await storeJob(job);
 }
 
-async function attemptGenerationFallback(job: BrokerJob, client: BrokerMcpClient): Promise<void> {
+async function attemptGenerationFallback(job: BrokerJob, client: BrokerMcpClient, discoverCall: CallRecord): Promise<void> {
   pushAudit(job, 'fallback_generation', 'No reliable marketplace listing remains; generating a workflow as last resort.');
   setStatus(job, 'executing');
   await storeJob(job);
   const result = await generateAndRun(client, job.spec.goal, normalizeParams(job.spec.params, null));
-  if (result.execution.completed) {
+  if (result.workflowId) {
+    recordDecision(job, {
+      source: 'generated_fallback',
+      workflow_id: result.workflowId,
+      workflow_created_at: result.workflowCreatedAt || new Date().toISOString(),
+      workflow_owner_address: null, // KeeperHub's create response does not expose the org wallet address
+      discover_call: discoverCall,
+      generate_call: buildGenerateCall(job.spec.goal, normalizeParams(job.spec.params, null), result),
+    });
+
+    // Enforce explicit user confirmation pause for all fallback workflows before execution
+    if (job.payMode === 'user' || job.payMode === 'real') {
+      pushAudit(job, 'fallback_generation', 'Generated fallback workflow requires explicit user authorization before execution.', {
+        workflowId: result.workflowId,
+        name: result.name,
+        buildPath: result.buildPath,
+        payMode: job.payMode,
+      });
+      setStatus(job, 'awaiting_payment');
+      await storeJob(job);
+    }
+  }
+  if (result.execution.verified) {
     job.execution = result.execution;
     if (result.buildPath === 'template') {
-      pushAudit(job, 'verification_passed', 'Workflow built from a marketplace template; execution launched in KeeperHub (manual trigger — confirm in the KeeperHub dashboard).', {
+      pushAudit(job, 'verification_passed', 'Workflow built from a marketplace template; execution confirmed via KeeperHub execution status.', {
         executionId: result.execution.executionId,
         workflowId: result.workflowId,
+        status: result.execution.status,
       });
       setStatus(job, 'completed');
       pushAudit(job, 'job_completed', 'Job completed — the agent built a new workflow from a template.', {
@@ -601,7 +781,28 @@ async function attemptGenerationFallback(job: BrokerJob, client: BrokerMcpClient
         buildPath: result.buildPath,
       });
     }
+    buildCompletionProof(job);
+    printCompletion(job);
     job.report = buildSuccessReport(job);
+    await storeJob(job);
+    return;
+  }
+  if (result.execution.executionId) {
+    // The workflow was genuinely built and launched, but KeeperHub never
+    // confirmed completion in the polling window. Record it honestly as an
+    // unverified launch, never as a verified success.
+    job.execution = result.execution;
+    pushAudit(job, 'verification_failed', 'Workflow launched but completion was NOT confirmed within the polling window.', {
+      executionId: result.execution.executionId,
+      workflowId: result.workflowId,
+      error: result.execution.error,
+      hint: 'Confirm the run in the KeeperHub dashboard before trusting the outcome.',
+    });
+    setStatus(job, 'failed');
+    job.error = result.execution.error ?? 'Workflow launch unconfirmed.';
+    buildCompletionProof(job);
+    printCompletion(job);
+    job.report = buildFailureReport(job);
     await storeJob(job);
     return;
   }
@@ -625,21 +826,29 @@ function normalizeParams(params: Record<string, unknown>, inputSchema: Record<st
 }
 
 function buildSuccessReport(job: BrokerJob): string {
+  const p = job.proof;
+  const verdict = p && p.status === 'verified' ? 'COMPLETED (VERIFIED)' : 'UNVERIFIED';
   const lines = [
-    `Job ${job.id} completed.`,
+    `Job ${job.id} — ${verdict}.`,
     '',
     `Goal: ${job.spec.goal}`,
     ...(job.selected ? [`Listing: ${job.selected.name} (${job.selected.slug})`, `Price: $${job.selected.priceUsdcPerCall.toFixed(2)}/call`] : []),
-    ...(job.payment ? [`Payment: ${job.payment.mode === 'simulated' ? 'simulated' : `real (tx ${job.payment.txHash})`} — $${job.payment.amountUsdc.toFixed(2)} ${job.payment.asset}`] : []),
+    `Source: ${job.decision?.source ?? 'unknown'}`,
+    `Workflow id: ${p?.workflow_id ?? 'none'}`,
+    ...(p
+      ? [
+          `Payment tx hash: ${p.payment_tx_hash ?? 'none'} — ${p.payment_confirmed.ok ? 'CONFIRMED' : `CHECK FAILED: ${p.payment_confirmed.detail}`} (${p.payment_confirmed.how})`,
+          `Execution tx hash: ${p.execution_tx_hash ?? 'none'} — ${p.execution_confirmed.ok ? 'CONFIRMED' : `CHECK FAILED: ${p.execution_confirmed.detail}`} (${p.execution_confirmed.how})`,
+        ]
+      : []),
     ...(job.payment?.receipt
       ? [
           `Receipt: block ${job.payment.receipt.blockNumber} · status ${job.payment.receipt.status} · confirmations ${job.payment.receipt.confirmations}`,
-          `On-chain check: amount match ${job.payment.receipt.matches.amount ? 'YES' : 'NO'} · recipient match ${job.payment.receipt.matches.recipient ? 'YES' : 'NO'}`,
           `Explorer: https://basescan.org/tx/${job.payment.txHash}`,
         ]
       : []),
     ...(job.execution?.executionId ? [`Execution id: ${job.execution.executionId}`] : []),
-    ...(job.execution?.verified ? [`Verified: yes (KeeperHub execution status)`] : [`Verified: execution launched — pending manual trigger on KeeperHub`]),
+    ...(p && p.status !== 'verified' ? [`Warning: this job is NOT reported as completed — ${p.payment_confirmed.ok && p.execution_confirmed.ok ? 'an independent check is missing' : 'see failing checks above'}.`] : []),
   ];
   return lines.join('\n');
 }

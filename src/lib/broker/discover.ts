@@ -4,6 +4,17 @@ import type { JobSpec, ListingCandidate } from './types';
 
 const SEARCH_LIMIT = 30;
 
+export interface DiscoverPass {
+  query: string;
+  sort: string;
+  chainId: number | null;
+}
+
+export interface DiscoverResult {
+  candidates: ListingCandidate[];
+  passes: DiscoverPass[];
+}
+
 function shortTokens(text: string, max = 3): string[] {
   return (text ?? '')
     .toLowerCase()
@@ -13,21 +24,24 @@ function shortTokens(text: string, max = 3): string[] {
     .slice(0, max);
 }
 
-async function searchPass(client: BrokerMcpClient, query: string, chainId: number | null): Promise<ListingCandidate[]> {
+async function searchPass(client: BrokerMcpClient, query: string, chainId: number | null, passes: DiscoverPass[]): Promise<ListingCandidate[]> {
+  passes.push({ query, sort: 'popular', chainId });
   const results = await client.searchWorkflows(query, { sort: 'popular' });
   const listed = results.filter((c) => c.isListed && c.slug);
   const onChain = listed.filter((c) => !chainId || !c.chain || c.chain === String(chainId) || c.chain === Number(chainId).toString());
   return onChain;
 }
 
-export async function discover(spec: JobSpec, client: BrokerMcpClient): Promise<ListingCandidate[]> {
+export async function discover(spec: JobSpec, client: BrokerMcpClient): Promise<DiscoverResult> {
+  const passes: DiscoverPass[] = [];
+
   // Pass 1: the LLM/heuristic query words.
-  let found = await searchPass(client, spec.query, spec.chainId);
+  let found = await searchPass(client, spec.query, spec.chainId, passes);
 
   // Pass 2: short keyword query derived from the goal.
   if (found.length === 0) {
     const keywords = shortTokens(`${spec.goal} ${spec.query}`).join(' ');
-    if (keywords.length > 2) found = await searchPass(client, keywords, spec.chainId);
+    if (keywords.length > 2) found = await searchPass(client, keywords, spec.chainId, passes);
   }
 
   // Pass 3: broad domain query so the demo still finds relevant listings.
@@ -37,7 +51,7 @@ export async function discover(spec: JobSpec, client: BrokerMcpClient): Promise<
       : /yield|rate|apy|compound|supply/i.test(spec.goal)
         ? 'yield'
         : 'defi';
-    found = await searchPass(client, broad, spec.chainId);
+    found = await searchPass(client, broad, spec.chainId, passes);
   }
 
   if (found.length === 0) {
@@ -51,5 +65,5 @@ export async function discover(spec: JobSpec, client: BrokerMcpClient): Promise<
   const inBudget = found.filter((c) => c.priceUsdcPerCall <= (spec.maxPriceUsdc ?? 0));
   const pool = inBudget.length > 0 ? inBudget : found;
 
-  return pool.slice(0, SEARCH_LIMIT);
+  return { candidates: pool.slice(0, SEARCH_LIMIT), passes };
 }
