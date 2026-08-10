@@ -70,7 +70,7 @@ export async function generateAndRun(
     if (!executed.executionId) {
       throw new Error('The generated workflow did not return an execution id.');
     }
-    const poll = await client.waitForExecution(executed.executionId, opts?.maxPolls ?? 3);
+    const poll = await client.waitForExecution(executed.executionId, opts?.maxPolls ?? 20);
     if (executed.executionId && (!poll.completed || poll.status === 'timeout')) {
       return {
         workflowId,
