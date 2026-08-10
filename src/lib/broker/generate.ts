@@ -72,6 +72,7 @@ export async function generateAndRun(
     }
     const poll = await client.waitForExecution(executed.executionId, opts?.maxPolls ?? 20);
     if (executed.executionId && (!poll.completed || poll.status === 'timeout')) {
+      const timedOut = poll.status === 'timeout';
       return {
         workflowId,
         name,
@@ -79,11 +80,13 @@ export async function generateAndRun(
         workflowCreatedAt,
         execution: {
           executionId: executed.executionId,
-          status: poll.status === 'timeout' ? 'timeout' : poll.status,
+          status: timedOut ? 'timeout' : poll.status,
           output: null,
           completed: false,
-          failed: false,
-          error: 'The workflow was launched, but KeeperHub did not confirm completion within the polling window — confirm it in the KeeperHub dashboard.',
+          failed: !timedOut ? poll.failed : false,
+          error: timedOut
+            ? 'The workflow was launched, but KeeperHub did not confirm completion within the polling window — confirm it in the KeeperHub dashboard.'
+            : (poll.error ?? 'The workflow was launched, but its execution failed.'),
           verified: false,
           receipts: [],
           executionTxHash: poll.transactionHash ?? executed.transactionHash ?? null,
