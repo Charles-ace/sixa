@@ -110,10 +110,10 @@ async function readRemote(forceFresh = false): Promise<BrokerJob[]> {
  * Blob metadata listing is consistent, so the newest snapshot is authoritative.
  */
 async function fetchNewestSnapshot(): Promise<BrokerJob[]> {
-  const listing = await list({ prefix: REMOTE_SNAPSHOT_PREFIX });
+  const listing = await blobList({ prefix: REMOTE_SNAPSHOT_PREFIX });
   const paths = listing.blobs.map((b) => b.pathname).sort();
   if (paths.length > 0) {
-    const res = await get(paths[paths.length - 1], { access: 'private' });
+    const res = await blobGet(paths[paths.length - 1], { access: 'private' });
     if (res && res.statusCode === 200 && res.stream) {
       const text = await new Response(res.stream).text();
       const parsed = JSON.parse(text) as { jobs?: BrokerJob[] };
@@ -122,7 +122,7 @@ async function fetchNewestSnapshot(): Promise<BrokerJob[]> {
     }
   }
   // Migration: pre-versioning single file (written by earlier builds).
-  const res = await get(REMOTE_PATH, { access: 'private' });
+  const res = await blobGet(REMOTE_PATH, { access: 'private' });
   if (res && res.statusCode === 200 && res.stream) {
     const text = await new Response(res.stream).text();
     const parsed = JSON.parse(text) as { jobs?: BrokerJob[] };
