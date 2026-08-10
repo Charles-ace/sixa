@@ -10,17 +10,15 @@ const REMOTE_CACHE_TTL_MS = 2500;
 // Statically scoped under the project root so Turbopack allows the fs calls.
 const filePath = resolve(join(process.cwd(), '.data', FILE_NAME));
 
-// Disabled permanently for this process the first time the shared store fails.
-// A dead blob must never stall or poison reads (empty results) for the rest of
-// the instance lifetime.
-let sharedBroken = false;
-
+// The shared store stays enabled for the instance lifetime; blob failures are
+// transient and retried per call. A permanent latch made a lambda pool serve
+// empty results forever (jobs/audit 404 divergence).
 export function usesSharedStore(): boolean {
-  return !sharedBroken && Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
 }
 
 export function isSharedStoreBroken(): boolean {
-  return sharedBroken;
+  return remoteLastFailedAt > 0 && Date.now() - remoteLastFailedAt < 60_000;
 }
 
 let writeChain: Promise<void> = Promise.resolve();
@@ -73,6 +71,7 @@ async function writeAtomic(target: string, content: string): Promise<void> {
 let remoteCache: { jobs: BrokerJob[]; at: number } | null = null;
 let remoteInFlight: Promise<BrokerJob[]> | null = null;
 let remoteWarned = false;
+let remoteLastFailedAt = 0;
 
 async function readRemote(forceFresh = false): Promise<BrokerJob[]> {
   if (!forceFresh && remoteInFlight) return remoteInFlight;
@@ -84,10 +83,26 @@ async function readRemote(forceFresh = false): Promise<BrokerJob[]> {
       const parsed = JSON.parse(text) as { jobs?: BrokerJob[] };
       return Array.isArray(parsed.jobs) ? parsed.jobs : [];
     } catch (error) {
-      sharedBroken = true;
+      // Transient blob failure: record it for observability but DO NOT latch.
+      // A permanent per-instance latch (sharedBroken) made one lambda pool
+      // return [] forever → getJob() null → 404 on /audit while other pools
+      // still served the same job from the same blob.
+      remoteLastFailedAt = Date.now();
       if (!remoteWarned) {
         remoteWarned = true;
-        console.warn('Broker store: could not read shared blob — shared store disabled for this instance:', error instanceof Error ? error.message : error);
+        console.warn('Broker store: could not read shared blob (will retry on next call):', error instanceof Error ? error.message : error);
+      }
+      try {
+        const res = await blobGet(REMOTE_PATH, { access: 'public' });
+        if (!res || res.statusCode !== 200 || !res.stream) return [];
+        const text = await new Response(res.stream).text();
+        const parsed = JSON.parse(text) as { jobs?: BrokerJob[] };
+        if (Array.isArray(parsed.jobs)) {
+          remoteLastFailedAt = 0;
+          return parsed.jobs;
+        }
+      } catch {
+        // second attempt also failed — still not latched, next call retries
       }
       return [];
     } finally {
@@ -123,10 +138,10 @@ export function flushSharedNow(jobs: BrokerJob[]): Promise<void> {
   writeChain = writeChain
     .then(() => putSnapshot(jobs))
     .catch((error) => {
-      sharedBroken = true;
+      remoteLastFailedAt = Date.now();
       if (!remoteWarned) {
         remoteWarned = true;
-        console.warn('Broker store: shared blob write failed — shared store disabled for this instance:', error instanceof Error ? error.message : error);
+        console.warn('Broker store: shared blob write failed (will retry on next write):', error instanceof Error ? error.message : error);
       }
     });
   return writeChain;

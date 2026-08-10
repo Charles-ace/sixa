@@ -288,43 +288,53 @@ export class BrokerMcpClient {
     await this.ensureInitialized();
     const parsed = await this.callTool('get_execution', { executionId, ...(opts?.includeData === false ? { includeData: false } : {}) });
     const data = parseJsonRecord(parsed.text) ?? {};
-    const status = String(data.status ?? 'pending');
-    const failed = data.failed === true || status === 'failed' || status === 'error';
 
-    // Extract transactionHashes array from KeeperHub get_execution response.
-    // The field may be an array of objects [{hash, chainId, nodeId, verified, receiptStatus, ...}]
-    // or a single string. Normalise to a string[].
-    const rawHashes = Array.isArray(data.transactionHashes)
-      ? (data.transactionHashes as unknown[]).map((h) =>
-          typeof h === 'string' ? h : (h as Record<string, unknown>)?.hash as string | undefined
-        ).filter(Boolean) as string[]
-      : [];
-    const singleHash = stringField(data, 'transactionHash') ?? stringField(data, 'txHash') ?? null;
-    const transactionHashes = rawHashes.length > 0 ? rawHashes : (singleHash ? [singleHash] : []);
+    // KeeperHub returns a NESTED shape:
+    //   { status: { status, nodeStatuses, progress, errorContext, transactionHashes },
+    //     logs: { execution: { ..., executionTrace, workflow: { nodes: [...] } } } }
+    // Read status.status — reading the outer "status" object yields
+    // "[object Object]" and completion is never detected (the timeout bug).
+    const statusObj = (data.status && typeof data.status === 'object' ? data.status : {}) as Record<string, unknown>;
+    const logs = (data.logs && typeof data.logs === 'object' ? (data.logs as Record<string, unknown>).execution : null) as Record<string, unknown> | null;
+    const status = String(statusObj.status ?? logs?.status ?? 'pending');
+    const failed = statusObj.failed === true || logs?.failed === true || status === 'failed' || status === 'error';
+
+    // transactionHashes may be an array of objects [{hash, chainId, ...}] or
+    // strings, in either the top-level status object or the execution log.
+    const rawHashes = extractHashes(statusObj.transactionHashes);
+    const logHashes = extractHashes(logs?.transactionHashes);
+    const singleHash = stringField(statusObj, 'transactionHash') ?? stringField(statusObj, 'txHash') ?? stringField(logs ?? {}, 'transactionHash') ?? null;
+    const transactionHashes = rawHashes.length > 0 ? rawHashes : (logHashes.length > 0 ? logHashes : (singleHash ? [singleHash] : []));
 
     // KeeperHub bug: a workflow whose write-action node is disabled returns
     // status: "success" with transactionHashes: [] and only the trigger in the
     // executionTrace. Treat this as a PHANTOM SUCCESS — the node did not run.
-    // Condition: status looks completed AND nodeStatuses are present (write wf)
-    // AND no transaction was emitted.
-    const nodeStatuses = Array.isArray(data.nodeStatuses) ? data.nodeStatuses : null;
-    const hasWriteNodes = nodeStatuses !== null && nodeStatuses.length > 1; // trigger + at least one action
+    // Condition: status looks completed AND the trace is missing action nodes
+    // (write workflow) AND no transaction was emitted.
+    const nodeStatuses = (Array.isArray(statusObj.nodeStatuses) ? statusObj.nodeStatuses : null)
+      ?? (Array.isArray(logs?.nodeStatuses) ? logs?.nodeStatuses as unknown[] : null)
+      ?? (Array.isArray(logs?.executionTrace) ? (logs?.executionTrace as unknown[]).map((id) => ({ nodeId: id })) : null);
+    const workflowNodes = Array.isArray((logs?.workflow as Record<string, unknown> | null | undefined)?.nodes) ? (logs?.workflow as Record<string, unknown>).nodes as unknown[] : null;
+    const ranNodeCount = nodeStatuses?.length ?? 0;
+    const totalNodeCount = workflowNodes?.length ?? ranNodeCount;
+    const skippedAction = totalNodeCount > 1 && ranNodeCount > 0 && ranNodeCount < totalNodeCount; // trigger ran, action(s) did not
+    const hasWriteNodes = ranNodeCount > 1 || skippedAction; // trigger + at least one action expected
     const isPhantomSuccess =
-      (status === 'success' || data.completed === true) &&
+      (status === 'success' || statusObj.completed === true || logs?.completed === true) &&
       hasWriteNodes &&
       transactionHashes.length === 0 &&
       !failed;
 
     const completed = isPhantomSuccess
       ? false // Don't treat disabled-node executions as complete
-      : (data.completed === true || status === 'completed' || status === 'success');
+      : (statusObj.completed === true || logs?.completed === true || status === 'completed' || status === 'success');
 
     return {
       status: isPhantomSuccess ? 'phantom_success' : status,
-      output: data.output != null ? JSON.stringify(data.output) : null,
+      output: typeof logs?.output === 'string' || typeof logs?.output === 'object' ? JSON.stringify(logs.output) : null,
       error: isPhantomSuccess
         ? 'Execution reported success but no on-chain transaction was emitted — a write action node may be disabled. Enable the node and retry.'
-        : (failed ? String(data.error ?? 'Execution failed.') : null),
+        : (failed ? String(statusObj.error ?? logs?.error ?? 'Execution failed.') : null),
       completed,
       failed: isPhantomSuccess ? true : failed,
       transactionHash: transactionHashes[0] ?? null,
@@ -494,6 +504,13 @@ function parseJsonRecord(raw: string): Record<string, unknown> | null {
 function stringField(data: Record<string, unknown>, key: string): string | null {
   const value = data[key];
   return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+function extractHashes(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((h) => (typeof h === 'string' ? h : ((h as Record<string, unknown>)?.hash as string | undefined)))
+    .filter((h): h is string => typeof h === 'string' && h.length > 0);
 }
 
 function parsePaymentQuote(text: string): PaymentQuote | null {
