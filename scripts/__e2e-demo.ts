@@ -75,7 +75,7 @@ async function main() {
     status: job2.status,
     decision: (job2.decision as { source?: string; workflow_id?: string | null }) ?? null,
     selected: (job2.selected as { slug?: string; name?: string; priceUsdcPerCall?: number } | null) ?? null,
-    payment: job2.payment ? { mode: (job2.payment as { mode?: string }).status } : null,
+    payment: job2.payment ? { mode: (job2.payment as { mode?: string }).mode } : null,
     execution: (job2.execution as { status?: string; verified?: boolean; completed?: boolean; executionId?: string | null; executionTxHash?: string | null; error?: string | null } | null) ?? null,
     proof: job2.proof ?? null,
     report: job2.report,
