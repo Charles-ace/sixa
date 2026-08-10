@@ -77,7 +77,7 @@ async function readRemote(forceFresh = false): Promise<BrokerJob[]> {
   if (!forceFresh && remoteInFlight) return remoteInFlight;
   const doFetch = async (): Promise<BrokerJob[]> => {
     try {
-      const res = await blobGet(REMOTE_PATH, { access: 'public' });
+      const res = await blobGet(REMOTE_PATH, { access: 'private' });
       if (!res || res.statusCode !== 200 || !res.stream) return [];
       const text = await new Response(res.stream).text();
       const parsed = JSON.parse(text) as { jobs?: BrokerJob[] };
@@ -93,7 +93,7 @@ async function readRemote(forceFresh = false): Promise<BrokerJob[]> {
         console.warn('Broker store: could not read shared blob (will retry on next call):', error instanceof Error ? error.message : error);
       }
       try {
-        const res = await blobGet(REMOTE_PATH, { access: 'public' });
+        const res = await blobGet(REMOTE_PATH, { access: 'private' });
         if (!res || res.statusCode !== 200 || !res.stream) return [];
         const text = await new Response(res.stream).text();
         const parsed = JSON.parse(text) as { jobs?: BrokerJob[] };
@@ -126,7 +126,7 @@ export async function loadSharedJobs(forceFresh = false): Promise<BrokerJob[]> {
 async function putSnapshot(jobs: BrokerJob[]): Promise<void> {
   remoteCache = null;
   await blobPut(REMOTE_PATH, JSON.stringify({ jobs }, null, 0), {
-    access: 'public',
+    access: 'private',
     addRandomSuffix: false,
     allowOverwrite: true,
     cacheControlMaxAge: 0,
