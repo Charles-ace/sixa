@@ -108,41 +108,49 @@ async function readRemote(forceFresh = false): Promise<BrokerJob[]> {
  */
 async function fetchNewestSnapshot(): Promise<BrokerJob[]> {
   try {
-    const res = await blobGet(REMOTE_PATH, { access: 'private' });
+    const res = await blobGet(REMOTE_PATH, { access: 'private', useCache: false });
     if (res && res.statusCode === 200 && res.stream) {
       const text = await new Response(res.stream).text();
       const parsed = JSON.parse(text) as { jobs?: BrokerJob[] };
       remoteLastFailedAt = 0;
-      if (Array.isArray(parsed.jobs)) return parsed.jobs;
+      if (Array.isArray(parsed.jobs)) {
+        console.log(`[store] fetchNewestSnapshot: loaded ${parsed.jobs.length} jobs from stable path`);
+        return parsed.jobs;
+      }
+    } else {
+      console.log(`[store] fetchNewestSnapshot: stable path returned status=${res?.statusCode ?? 'null'}, falling through to list()`);
     }
   } catch (error) {
-    // If stable path doesn't exist, we will try to migrate from old snapshots below
+    console.log(`[store] fetchNewestSnapshot: stable path threw: ${error instanceof Error ? error.message : error}`);
   }
 
-  // One-time Migration Fallback: load from the newest snapshot and save it to the stable path
+  // Fallback: list snapshot files (used until stable path is populated)
   try {
     const { list: blobList } = await import('@vercel/blob');
     const listing = await blobList({ prefix: 'sixa/snapshots/' });
-    const paths = listing.blobs.map((b) => b.pathname).sort();
-    if (paths.length > 0) {
-      const res = await blobGet(paths[paths.length - 1], { access: 'private' });
+    const sorted = listing.blobs.map((b) => b.pathname).sort();
+    console.log(`[store] fetchNewestSnapshot: found ${sorted.length} legacy snapshots`);
+    if (sorted.length > 0) {
+      const res = await blobGet(sorted[sorted.length - 1], { access: 'private', useCache: false });
       if (res && res.statusCode === 200 && res.stream) {
         const text = await new Response(res.stream).text();
         const parsed = JSON.parse(text) as { jobs?: BrokerJob[] };
         if (Array.isArray(parsed.jobs)) {
-          // Save it to the stable path immediately so list() is never called again
-          await putSnapshot(parsed.jobs);
+          console.log(`[store] fetchNewestSnapshot: migrating ${parsed.jobs.length} jobs from legacy snapshot to stable path`);
+          // Write to stable path asynchronously (don't await — avoid blocking reads)
+          putSnapshot(parsed.jobs).catch((e) => console.warn('[store] migration write failed:', e));
           remoteLastFailedAt = 0;
           return parsed.jobs;
         }
       }
     }
   } catch (migrateError) {
-    console.warn('Migration fallback failed:', migrateError);
+    console.warn('[store] Migration fallback failed:', migrateError);
   }
 
   return [];
 }
+
 
 export async function loadSharedJobs(forceFresh = false): Promise<BrokerJob[]> {
   if (!forceFresh && remoteCache && Date.now() - remoteCache.at < REMOTE_CACHE_TTL_MS) {
