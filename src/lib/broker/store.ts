@@ -116,9 +116,31 @@ async function fetchNewestSnapshot(): Promise<BrokerJob[]> {
       if (Array.isArray(parsed.jobs)) return parsed.jobs;
     }
   } catch (error) {
-    remoteLastFailedAt = Date.now();
-    throw error;
+    // If stable path doesn't exist, we will try to migrate from old snapshots below
   }
+
+  // One-time Migration Fallback: load from the newest snapshot and save it to the stable path
+  try {
+    const { list: blobList } = await import('@vercel/blob');
+    const listing = await blobList({ prefix: 'sixa/snapshots/' });
+    const paths = listing.blobs.map((b) => b.pathname).sort();
+    if (paths.length > 0) {
+      const res = await blobGet(paths[paths.length - 1], { access: 'private' });
+      if (res && res.statusCode === 200 && res.stream) {
+        const text = await new Response(res.stream).text();
+        const parsed = JSON.parse(text) as { jobs?: BrokerJob[] };
+        if (Array.isArray(parsed.jobs)) {
+          // Save it to the stable path immediately so list() is never called again
+          await putSnapshot(parsed.jobs);
+          remoteLastFailedAt = 0;
+          return parsed.jobs;
+        }
+      }
+    }
+  } catch (migrateError) {
+    console.warn('Migration fallback failed:', migrateError);
+  }
+
   return [];
 }
 
