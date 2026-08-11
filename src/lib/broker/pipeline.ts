@@ -387,6 +387,7 @@ export async function runJob(jobId: string, input: {
   budgetUsdc?: number;
   forcedSlug?: string | null;
   payMode?: PaymentMode;
+  demoMode?: boolean;
 }): Promise<BrokerJob> {
   // Reuse the job registered by createJob when present; otherwise register
   // one now so callers can poll it while intake runs.
@@ -484,12 +485,13 @@ async function executePipeline(job: BrokerJob): Promise<void> {
   const isDemoMode = Boolean(job.spec.demoMode || job.payment?.mode === 'demo');
   if (isDemoMode) {
     const bestScore = candidates.length > 0 ? bestMatchScore(job.spec, candidates) : 0;
-    pushAudit(job, 'candidate_found', `Demo mode active: probed ${candidates.length} marketplace listings (best match score ${bestScore.toFixed(1)}). Bypassing mainnet payment attempt to execute free Base Sepolia fallback workflow.`, {
+    pushAudit(job, 'candidate_found', `Marketplace path skipped: demo mode active, no mainnet funds available for live payment. Probed ${candidates.length} marketplace listings (best match score ${bestScore.toFixed(1)}); proceeding to the free Base Sepolia generation fallback.`, {
       demoMode: true,
       bestScore,
+      reason: 'demo mode, no mainnet funds available for live payment',
       slugs: candidates.slice(0, 8).map((c) => c.slug),
     });
-    pushAudit(job, 'fallback_generation', 'Demo mode active — proceeding directly to generation fallback on Base Sepolia.');
+    pushAudit(job, 'fallback_generation', 'Demo mode active — no marketplace payment attempt; proceeding to free Base Sepolia generation fallback.');
     await attemptGenerationFallback(job, client, discoverCall);
     return;
   }
@@ -811,7 +813,10 @@ async function attemptGenerationFallback(job: BrokerJob, client: BrokerMcpClient
   const params = normalizeParams(job.spec.params, null);
 
   // Enforce explicit user authorization before any fallback execution starts.
-  if (job.payMode === 'user' || job.payMode === 'real') {
+  // Demo mode still honors the gate: the pause is the honest, recorded
+  // authorization step before the free Base Sepolia execution starts — no
+  // payment is involved at any point (marketplace payments were skipped).
+  if (job.payMode === 'user' || job.payMode === 'real' || job.payMode === 'demo') {
     job.pendingFallback = {
       workflowId: ref.workflowId,
       name: ref.name,
@@ -831,7 +836,14 @@ async function attemptGenerationFallback(job: BrokerJob, client: BrokerMcpClient
       name: ref.name,
       buildPath: ref.buildPath,
       payMode: job.payMode,
+      demoMode: job.payMode === 'demo',
     });
+    if (job.payMode === 'demo') {
+      pushAudit(job, 'fallback_generation', 'Demo mode: awaiting explicit authorization before executing the free Base Sepolia fallback workflow — no payment required in this mode (marketplace payments skipped).', {
+        workflowId: ref.workflowId,
+        demoMode: true,
+      });
+    }
     setStatus(job, 'awaiting_payment');
     await storeJob(job);
     return;
@@ -917,7 +929,7 @@ export async function resumeFallbackAfterAuthorization(jobId: string): Promise<{
   if (job.status !== 'awaiting_payment') {
     return { ok: false, code: 'invalid_state', error: 'Job is not awaiting authorization.' };
   }
-  if (job.payMode !== 'user' && job.payMode !== 'real') {
+  if (job.payMode !== 'user' && job.payMode !== 'real' && job.payMode !== 'demo') {
     return { ok: false, code: 'not_paused', error: 'This job does not require fallback authorization.' };
   }
   const ref = job.pendingFallback;
