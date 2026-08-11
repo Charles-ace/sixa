@@ -178,9 +178,10 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
   }, [jobId]);
 
   useEffect(() => {
-    const id = setInterval(() => void poll(), 1500);
+    if (job?.status === 'completed' || job?.status === 'failed') return;
+    const id = setInterval(() => void poll(), 3000);
     return () => clearInterval(id);
-  }, [poll]);
+  }, [poll, job?.status]);
 
   const targetActiveIndex = job && STEP_LABELS[job.status] ? STEPS.indexOf(job.status) : -1;
 

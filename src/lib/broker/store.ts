@@ -1,12 +1,11 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'fs';
 import { dirname, join, resolve } from 'path';
-import { get as blobGet, list as blobList, put as blobPut } from '@vercel/blob';
+import { get as blobGet, put as blobPut } from '@vercel/blob';
 import type { BrokerJob } from './types';
 
 const FILE_NAME = 'broker-jobs.json';
 const REMOTE_PATH = 'sixa/broker-jobs.json';
-const REMOTE_SNAPSHOT_PREFIX = 'sixa/snapshots/';
-const REMOTE_CACHE_TTL_MS = 2500;
+const REMOTE_CACHE_TTL_MS = 5000;
 
 // Statically scoped under the project root so Turbopack allows the fs calls.
 const filePath = resolve(join(process.cwd(), '.data', FILE_NAME));
@@ -44,8 +43,13 @@ export function loadJobs(): BrokerJob[] {
 }
 
 export function saveJobs(jobs: BrokerJob[]): Promise<void> {
-  // No debounce: the instance can die at any moment (serverless freeze, Render
-  // restarts, OOM). Every state transition must be on disk immediately.
+  // Save locally first
+  saveJobsLocal(jobs);
+  // Flush to shared store (Vercel Blob)
+  return flushSharedNow([...jobs]);
+}
+
+export function saveJobsLocal(jobs: BrokerJob[]): void {
   const snapshot = JSON.stringify({ jobs }, null, 0);
   writeChain = writeChain
     .then(() => writeAtomic(filePath, snapshot))
@@ -55,9 +59,6 @@ export function saveJobs(jobs: BrokerJob[]): Promise<void> {
         console.warn('Broker persistence: job writes disabled (read-only filesystem?):', error instanceof Error ? error.message : error);
       }
     });
-  // Blob writes are not debounced either: every state change must be durable
-  // immediately so other instances can see it.
-  return flushSharedNow([...jobs]);
 }
 
 async function writeAtomic(target: string, content: string): Promise<void> {
@@ -73,7 +74,6 @@ let remoteCache: { jobs: BrokerJob[]; at: number } | null = null;
 let remoteInFlight: Promise<BrokerJob[]> | null = null;
 let remoteWarned = false;
 let remoteLastFailedAt = 0;
-let snapshotSeq = 0;
 
 async function readRemote(forceFresh = false): Promise<BrokerJob[]> {
   if (!forceFresh && remoteInFlight) return remoteInFlight;
@@ -103,33 +103,21 @@ async function readRemote(forceFresh = false): Promise<BrokerJob[]> {
 }
 
 /**
- * Snapshot reads: writes are IMMUTABLE versioned files (sixa/snapshots/<ts>.json),
- * and reads list() to pick the newest one. Overwriting one fixed path served
- * stale CDN-edge copies to some instances for minutes after each write, which
- * made job/audit look instance-dependent (404s that later turned into 200s).
- * Blob metadata listing is consistent, so the newest snapshot is authoritative.
+ * Reads directly from private stable blob object (sixa/broker-jobs.json).
+ * Keeps data private and avoids expensive list() operations.
  */
 async function fetchNewestSnapshot(): Promise<BrokerJob[]> {
-  const listing = await blobList({ prefix: REMOTE_SNAPSHOT_PREFIX });
-  const paths = listing.blobs.map((b) => b.pathname).sort();
-  if (paths.length > 0) {
-    const res = await blobGet(paths[paths.length - 1], { access: 'private' });
+  try {
+    const res = await blobGet(REMOTE_PATH, { access: 'private' });
     if (res && res.statusCode === 200 && res.stream) {
       const text = await new Response(res.stream).text();
       const parsed = JSON.parse(text) as { jobs?: BrokerJob[] };
       remoteLastFailedAt = 0;
       if (Array.isArray(parsed.jobs)) return parsed.jobs;
     }
-  }
-  // Migration: pre-versioning single file (written by earlier builds).
-  const res = await blobGet(REMOTE_PATH, { access: 'private' });
-  if (res && res.statusCode === 200 && res.stream) {
-    const text = await new Response(res.stream).text();
-    const parsed = JSON.parse(text) as { jobs?: BrokerJob[] };
-    if (Array.isArray(parsed.jobs)) {
-      remoteLastFailedAt = 0;
-      return parsed.jobs;
-    }
+  } catch (error) {
+    remoteLastFailedAt = Date.now();
+    throw error;
   }
   return [];
 }
@@ -145,9 +133,7 @@ export async function loadSharedJobs(forceFresh = false): Promise<BrokerJob[]> {
 
 async function putSnapshot(jobs: BrokerJob[]): Promise<void> {
   remoteCache = null;
-  snapshotSeq += 1;
-  const pathname = `${REMOTE_SNAPSHOT_PREFIX}${String(Date.now()).padStart(14, '0')}-${snapshotSeq}.json`;
-  await blobPut(pathname, JSON.stringify({ jobs }, null, 0), {
+  await blobPut(REMOTE_PATH, JSON.stringify({ jobs }, null, 0), {
     access: 'private',
     addRandomSuffix: false,
     allowOverwrite: true,

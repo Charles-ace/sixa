@@ -8,7 +8,7 @@ import { createFallbackWorkflow, executeFallbackWorkflow, type FallbackWorkflowR
 import { after } from 'next/server';
 import { generateId } from '@/lib/utils';
 import { ProviderError } from '@/lib/keeperhub/providers/http';
-import { loadJobs, loadSharedJobs, saveJobs, usesSharedStore } from './store';
+import { flushSharedNow, loadJobs, loadSharedJobs, saveJobs, saveJobsLocal, usesSharedStore } from './store';
 import { isNativeAsset, type AuditEvent, type AuditEventType, type BrokerJob, type CallRecord, type CheckResultDetail, type CompletionProof, type ExecutionResult, type JobDecision, type JobSpec, type ListingCandidate, type PaymentMode } from './types';
 
 const jobs = new Map<string, BrokerJob>();
@@ -93,7 +93,15 @@ export function setStatus(job: BrokerJob, status: BrokerJob['status']): void {
   job.updatedAt = new Date().toISOString();
 }
 
-export async function storeJob(job: BrokerJob): Promise<void> {
+const MAJOR_STATUSES = new Set<BrokerJob['status']>([
+  'intake',
+  'awaiting_payment',
+  'executing',
+  'completed',
+  'failed',
+]);
+
+export async function storeJob(job: BrokerJob, options?: { forceFlush?: boolean }): Promise<void> {
   jobs.set(job.id, job);
   if (jobs.size > MAX_JOBS) {
     const oldest = [...jobs.keys()].sort((a, b) => {
@@ -103,7 +111,10 @@ export async function storeJob(job: BrokerJob): Promise<void> {
     }).slice(0, jobs.size - MAX_JOBS);
     for (const key of oldest) jobs.delete(key);
   }
-  await saveJobs([...jobs.values()]);
+  saveJobsLocal([...jobs.values()]);
+  if (options?.forceFlush || MAJOR_STATUSES.has(job.status)) {
+    await flushSharedNow([...jobs.values()]);
+  }
 }
 
 // ---- explicit per-job decision record + completion verdict ----

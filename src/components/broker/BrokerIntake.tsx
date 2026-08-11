@@ -44,7 +44,7 @@ export function BrokerIntake({ onJobCreated }: BrokerIntakeProps) {
   }, []);
 
   useEffect(() => {
-    if (!jobId) return;
+    if (!jobId || jobStatus === 'completed' || jobStatus === 'failed') return;
     const timer = setInterval(async () => {
       try {
         const res = await fetch(`/api/broker/jobs/${jobId}`);
@@ -61,9 +61,9 @@ export function BrokerIntake({ onJobCreated }: BrokerIntakeProps) {
       } catch {
         // transient network error — poll again
       }
-    }, 2000);
+    }, 3000);
     return () => clearInterval(timer);
-  }, [jobId]);
+  }, [jobId, jobStatus]);
 
   const handleSubmit = useCallback(async (text?: string, forcedSlug?: string | null) => {
     const trimmed = (text ?? message).trim();
