@@ -6,7 +6,9 @@ import type { BrokerJob } from './types';
 const FILE_NAME = 'broker-jobs.json';
 const REMOTE_PATH = 'sixa/broker-jobs.json';
 const REMOTE_JOB_PREFIX = 'sixa/jobs/';
-const REMOTE_CACHE_TTL_MS = 5000;
+// Long TTL so repeated reads within an instance hit memory instead of the
+// blob API — Vercel Blob advanced operations are quota-billed (2K/month free).
+const REMOTE_CACHE_TTL_MS = 30000;
 
 // Statically scoped under the project root so Turbopack allows the fs calls.
 const filePath = resolve(join(process.cwd(), '.data', FILE_NAME));
@@ -81,17 +83,17 @@ export async function loadSharedJob(jobId: string): Promise<BrokerJob | null> {
   if (!usesSharedStore()) return null;
   try {
     const path = `${REMOTE_JOB_PREFIX}${jobId}.json`;
-    const res = await blobGet(path, { access: 'private', useCache: false });
+    const res = await blobGet(path, { access: 'private' });
     if (res && res.statusCode === 200 && res.stream) {
       const text = await new Response(res.stream).text();
       const parsed = JSON.parse(text) as BrokerJob;
-      if (parsed && parsed.id === jobId) {
-        console.log(`[store] loadSharedJob: found job ${jobId} (status=${parsed.status})`);
-        return parsed;
-      }
+      if (parsed && parsed.id === jobId) return parsed;
     }
   } catch (error) {
-    console.warn(`[store] loadSharedJob: failed for ${jobId}:`, error instanceof Error ? error.message : error);
+    if (!remoteWarned) {
+      remoteWarned = true;
+      console.warn('[store] loadSharedJob failed:', error instanceof Error ? error.message : error);
+    }
   }
   return null;
 }
@@ -122,45 +124,56 @@ async function readRemote(forceFresh = false): Promise<BrokerJob[]> {
   return fetchPromise;
 }
 
+let migrationTried = false;
+
 async function fetchNewestSnapshot(): Promise<BrokerJob[]> {
+  let missing = false;
   try {
-    const res = await blobGet(REMOTE_PATH, { access: 'private', useCache: false });
+    const res = await blobGet(REMOTE_PATH, { access: 'private' });
     if (res && res.statusCode === 200 && res.stream) {
       const text = await new Response(res.stream).text();
       const parsed = JSON.parse(text) as { jobs?: BrokerJob[] };
       remoteLastFailedAt = 0;
-      if (Array.isArray(parsed.jobs)) {
-        console.log(`[store] fetchNewestSnapshot: loaded ${parsed.jobs.length} jobs from stable path`);
-        return parsed.jobs;
-      }
-    } else {
-      console.log(`[store] fetchNewestSnapshot: stable path returned status=${res?.statusCode ?? 'null'}, trying legacy`);
+      if (Array.isArray(parsed.jobs)) return parsed.jobs;
     }
   } catch (error) {
-    console.log(`[store] fetchNewestSnapshot: stable path threw: ${error instanceof Error ? error.message : error}`);
+    const { BlobNotFoundError } = await import('@vercel/blob');
+    if (error instanceof BlobNotFoundError) {
+      missing = true;
+    } else {
+      // Auth/network failures (e.g. suspended store) must NOT trigger the
+      // legacy list() migration — listing is quota-billed too.
+      if (!remoteWarned) {
+        remoteWarned = true;
+        console.warn('[store] stable path read failed:', error instanceof Error ? error.message : error);
+      }
+      return [];
+    }
   }
 
-  // Fallback: list legacy snapshot files
-  try {
-    const { list: blobList } = await import('@vercel/blob');
-    const listing = await blobList({ prefix: 'sixa/snapshots/' });
-    const sorted = listing.blobs.map((b) => b.pathname).sort();
-    console.log(`[store] fetchNewestSnapshot: found ${sorted.length} legacy snapshots`);
-    if (sorted.length > 0) {
-      const res = await blobGet(sorted[sorted.length - 1], { access: 'private', useCache: false });
-      if (res && res.statusCode === 200 && res.stream) {
-        const text = await new Response(res.stream).text();
-        const parsed = JSON.parse(text) as { jobs?: BrokerJob[] };
-        if (Array.isArray(parsed.jobs)) {
-          console.log(`[store] fetchNewestSnapshot: migrating ${parsed.jobs.length} jobs from legacy snapshot`);
-          putSnapshot(parsed.jobs).catch((e) => console.warn('[store] migration write failed:', e));
-          remoteLastFailedAt = 0;
-          return parsed.jobs;
+  // One-time legacy migration, only when the stable path is genuinely
+  // missing. Lists snapshots at most once per serverless instance.
+  if (missing && !migrationTried) {
+    migrationTried = true;
+    try {
+      const { list: blobList } = await import('@vercel/blob');
+      const listing = await blobList({ prefix: 'sixa/snapshots/' });
+      const sorted = listing.blobs.map((b) => b.pathname).sort();
+      if (sorted.length > 0) {
+        const res = await blobGet(sorted[sorted.length - 1], { access: 'private' });
+        if (res && res.statusCode === 200 && res.stream) {
+          const text = await new Response(res.stream).text();
+          const parsed = JSON.parse(text) as { jobs?: BrokerJob[] };
+          if (Array.isArray(parsed.jobs)) {
+            putSnapshot(parsed.jobs).catch((e) => console.warn('[store] migration write failed:', e));
+            remoteLastFailedAt = 0;
+            return parsed.jobs;
+          }
         }
       }
+    } catch (migrateError) {
+      console.warn('[store] migration fallback failed:', migrateError);
     }
-  } catch (migrateError) {
-    console.warn('[store] Migration fallback failed:', migrateError);
   }
 
   return [];

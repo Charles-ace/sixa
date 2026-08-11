@@ -281,23 +281,24 @@ function recordDecision(job: BrokerJob, decision: JobDecision): void {
 }
 
 export async function getJob(jobId: string): Promise<BrokerJob | null> {
-  // Fast path: read the job directly from its own blob file.
-  // This works reliably on cold lambda instances without needing to list all jobs.
+  // In-memory first: the polling client keeps the creating instance warm, so
+  // polls resolve here with ZERO blob operations (quota-billed, 2K/month).
+  if (jobs.has(jobId)) return jobs.get(jobId)!;
+  // Cold instance: single per-job blob read.
   if (usesSharedStore()) {
     const fromBlob = await loadSharedJob(jobId);
     if (fromBlob) {
-      // Hydrate local in-memory map for subsequent calls in this instance lifetime
       if (!jobs.has(jobId) || new Date(fromBlob.updatedAt) > new Date(jobs.get(jobId)!.updatedAt)) {
         jobs.set(jobId, fromBlob);
       }
       return fromBlob;
     }
   }
-  // Fallback: check in-memory map (warm instance)
-  if (jobs.has(jobId)) return jobs.get(jobId)!;
-  // Force fresh remote fetch (bypassing 5-second remoteCache) to ensure cold instances find newly created jobs
-  const all = await listJobs(true);
-  return all.find((j) => j.id === jobId) ?? null;
+  // Local file fallback (per-instance durable copy).
+  for (const job of loadJobs()) {
+    if (!jobs.has(job.id)) jobs.set(job.id, job);
+  }
+  return jobs.get(jobId) ?? null;
 }
 
 /**
