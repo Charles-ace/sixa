@@ -268,13 +268,10 @@ export async function createFallbackWorkflow(
           }
         }
       } catch {
-        // Ignore template errors and throw root
+        // Ignore template errors
       }
-      throw createErr;
-    }
-  }
       const aiMessage = aiError instanceof Error ? aiError.message : String(aiError);
-      const tplMessage = templateError instanceof Error ? templateError.message : String(templateError);
+      const createMessage = createErr instanceof Error ? createErr.message : String(createErr);
       return {
         workflowId: '',
         name: '',
@@ -286,7 +283,7 @@ export async function createFallbackWorkflow(
           output: null,
           completed: false,
           failed: true,
-          error: `Workflow generation failed (AI: ${aiMessage}; template fallback: ${tplMessage}).`,
+          error: `Workflow generation failed (AI: ${aiMessage}; programmatic fallback: ${createMessage}).`,
           verified: false,
           receipts: [],
         },
