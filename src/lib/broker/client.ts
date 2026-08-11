@@ -30,6 +30,19 @@ interface SearchPayload {
   limit?: number;
 }
 
+export interface WorkflowNodeInfo {
+  id: string;
+  type: string;
+  label: string | null;
+  actionType: string | null;
+  network: string | null;
+  abiFunction: string | null;
+  functionArgs: string | null;
+  contractAddress: string | null;
+  abi: string | null;
+  triggerType: string | null;
+}
+
 function normalizeKey(raw: string | undefined): string {
   return (raw ?? '').trim().replace(/^["']/, '').replace(/["']$/, '');
 }
@@ -227,6 +240,75 @@ export class BrokerMcpClient {
   }
 
   /**
+   * Fetch an organization workflow and its node configurations. Used by the
+   * template fallback to pick a template whose write action runs on a chain
+   * the org wallet is actually funded on.
+   */
+  async getWorkflow(workflowId: string): Promise<{ workflowId: string; name: string; enabled: boolean; networks: string[]; actionTypes: string[]; nodes: WorkflowNodeInfo[] }> {
+    this.requireConfigured();
+    await this.ensureInitialized();
+    const parsed = await this.callTool('get_workflow', { workflowId });
+    const data = parseJsonPayload(parsed.text);
+    const wf = (data && typeof data === 'object'
+      ? (data as Record<string, unknown>).workflow ?? (data as Record<string, unknown>).result ?? data
+      : {}) as Record<string, unknown>;
+    const nodes = Array.isArray(wf.nodes) ? (wf.nodes as Record<string, unknown>[]) : [];
+    const networks: string[] = [];
+    const actionTypes: string[] = [];
+    const info: WorkflowNodeInfo[] = [];
+    for (const node of nodes) {
+      const nodeData = (node.data && typeof node.data === 'object' ? node.data : {}) as Record<string, unknown>;
+      const config = (nodeData.config && typeof nodeData.config === 'object' ? nodeData.config : {}) as Record<string, unknown>;
+      const network = typeof config.network === 'string' ? config.network : null;
+      const actionType = typeof config.actionType === 'string' ? config.actionType : null;
+      if (network) networks.push(network);
+      if (actionType) actionTypes.push(actionType);
+      info.push({
+        id: String(node.id ?? ''),
+        type: String(node.type ?? ''),
+        label: typeof nodeData.label === 'string' ? nodeData.label : null,
+        actionType,
+        network,
+        abiFunction: typeof config.abiFunction === 'string' ? config.abiFunction : null,
+        functionArgs: typeof config.functionArgs === 'string' ? config.functionArgs : null,
+        contractAddress: typeof config.contractAddress === 'string' ? config.contractAddress : null,
+        abi: typeof config.abi === 'string' ? config.abi : null,
+        triggerType: typeof config.triggerType === 'string' ? config.triggerType : null,
+      });
+    }
+    return {
+      workflowId,
+      name: String(wf.name ?? ''),
+      enabled: wf.enabled === true,
+      networks: [...new Set(networks)],
+      actionTypes: [...new Set(actionTypes)],
+      nodes: info,
+    };
+  }
+
+  /**
+   * Create an organization workflow from a raw node/edge definition. Used by
+   * the generation fallback when AI generation is unavailable.
+   */
+  async createWorkflow(name: string, description: string, nodes: unknown[], edges: unknown[]): Promise<{ workflowId: string; name: string }> {
+    this.requireConfigured();
+    await this.ensureInitialized();
+    const createdResult = await this.callTool('create_workflow', {
+      name,
+      description,
+      nodes,
+      edges,
+      enabled: false,
+    });
+    const created = parseJsonRecord(createdResult.text) ?? {};
+    const workflowId = stringField(created, 'id') ?? stringField(created, 'workflowId');
+    if (!workflowId) {
+      throw new ProviderError({ code: 'creation_failed', message: 'create_workflow did not return an id.', hint: createdResult.text.slice(0, 300) });
+    }
+    return { workflowId, name };
+  }
+
+  /**
    * Call a listed workflow. For paid listings this returns a PaymentQuote
    * (x402 v2) instead of executing — the payment must be made before
    * execution is allowed.
@@ -368,6 +450,14 @@ export class BrokerMcpClient {
         });
       }
       const genRaw = parseJsonRecord(generated.text) ?? {};
+      if (genRaw.code === 'upstream_cold_start') {
+        throw new ProviderError({
+          code: 'upstream_cold_start',
+          message: `KeeperHub AI generation is cold-starting (${String(genRaw.retryAfterSeconds ?? 30)}s warmup).`,
+          hint: String(genRaw.hint ?? `Retry after ${String(genRaw.retryAfterSeconds ?? 30)} seconds.`),
+          body: genRaw,
+        });
+      }
       const gen = (genRaw.workflow && typeof genRaw.workflow === 'object' ? genRaw.workflow : genRaw) as Record<string, unknown>;
       const nodes = coerceArray(gen.nodes);
       const edges = coerceArray(gen.edges);

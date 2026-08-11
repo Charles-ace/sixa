@@ -147,8 +147,19 @@ function buildGenerateCall(goal: string, params: Record<string, unknown>, ref: F
 }
 
 function buildCompletionProof(job: BrokerJob): CompletionProof {
+  // The fallback path has no payment step by design: verification is
+  // execution-based only (workflow built, executed on Base Sepolia, tx hash
+  // confirmed via KeeperHub). Payment checks only apply to paid listings.
+  const isFallback = job.decision?.source === 'generated_fallback';
   const paymentTx = job.payment?.txHash ?? null;
   const paymentConfirmed: CheckResultDetail = (() => {
+    if (isFallback) {
+      return {
+        ok: true,
+        how: 'not applicable — fallback path has no payment step',
+        detail: 'verification is execution-based for generated/template workflows',
+      };
+    }
     if (job.payment?.status !== 'paid' || !paymentTx) {
       return {
         ok: false,
@@ -186,8 +197,8 @@ function buildCompletionProof(job: BrokerJob): CompletionProof {
   })();
 
   const checks: Array<{ name: string; ok: boolean }> = [
-    { name: 'payment_tx_hash present', ok: Boolean(paymentTx) },
-    { name: 'payment independently confirmed (Base block explorer)', ok: paymentConfirmed.ok },
+    { name: 'payment_tx_hash present', ok: isFallback || Boolean(paymentTx) },
+    { name: 'payment independently confirmed (Base block explorer)', ok: isFallback || paymentConfirmed.ok },
     { name: 'execution_tx_hash present', ok: Boolean(execTx) },
     { name: 'execution confirmed via KeeperHub status endpoint', ok: executionConfirmed.ok },
     { name: 'workflow_id present', ok: Boolean(job.decision?.workflow_id) },

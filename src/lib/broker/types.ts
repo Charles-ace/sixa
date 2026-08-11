@@ -242,7 +242,7 @@ export interface BrokerJob {
   pendingFallback: {
     workflowId: string;
     name: string;
-    buildPath: 'ai' | 'template' | 'none';
+    buildPath: 'ai' | 'template' | 'programmatic' | 'none';
     workflowCreatedAt: string;
   } | null;
 }

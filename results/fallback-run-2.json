@@ -1,0 +1,2379 @@
+{
+  "runId": "2",
+  "startedAt": "2026-08-10T22:46:22.317Z",
+  "base": "http://localhost:3211",
+  "message": "Verify the anchor commitment on Base for the demo run",
+  "steps": [
+    {
+      "step": "STEP 1: POST /api/broker/jobs",
+      "at": "2026-08-10T22:46:22.322Z",
+      "data": {
+        "message": "Verify the anchor commitment on Base for the demo run",
+        "budgetUsdc": 0.5,
+        "payMode": "real"
+      }
+    },
+    {
+      "step": "STEP 1 RESPONSE (raw)",
+      "at": "2026-08-10T22:46:23.894Z",
+      "data": {
+        "httpStatus": 201,
+        "body": {
+          "job": {
+            "id": "1786401982509-hpg0hxx",
+            "status": "intake",
+            "spec": {
+              "goal": "Verify the anchor commitment on Base for the demo run",
+              "query": "",
+              "params": {},
+              "budgetUsdc": 0.5,
+              "chainId": null,
+              "maxPriceUsdc": 0.25
+            },
+            "accountEmail": null,
+            "createdAt": "2026-08-10T22:46:22.509Z",
+            "updatedAt": "2026-08-10T22:46:22.509Z",
+            "candidates": [],
+            "selected": null,
+            "quote": null,
+            "payment": null,
+            "execution": null,
+            "audit": [
+              {
+                "id": "1786401982509-2zgfp7c",
+                "jobId": "1786401982509-hpg0hxx",
+                "type": "job_created",
+                "message": "Job 1786401982509-hpg0hxx created.",
+                "data": {
+                  "goal": "Verify the anchor commitment on Base for the demo run",
+                  "budgetUsdc": 0.5,
+                  "chainId": null,
+                  "payMode": "real"
+                },
+                "timestamp": "2026-08-10T22:46:22.509Z"
+              }
+            ],
+            "report": null,
+            "error": null,
+            "forcedSlug": null,
+            "payMode": "real",
+            "decision": null,
+            "decisionRecord": null,
+            "proof": null,
+            "pendingFallback": null
+          }
+        }
+      }
+    },
+    {
+      "step": "JOB ID",
+      "at": "2026-08-10T22:46:23.894Z",
+      "data": "1786401982509-hpg0hxx"
+    },
+    {
+      "step": "STEP 2: poll until authorization gate (awaiting_payment)",
+      "at": "2026-08-10T22:46:23.894Z"
+    },
+    {
+      "step": "STEP 2 poll 1 (http 200)",
+      "at": "2026-08-10T22:46:28.462Z",
+      "data": {
+        "status": "discovering",
+        "audit": [
+          "job_created",
+          "intent_parsed",
+          "catalog_searched"
+        ],
+        "pendingFallback": null,
+        "quote": null,
+        "execution": null,
+        "error": null
+      }
+    },
+    {
+      "step": "STEP 2 poll 2 (http 200)",
+      "at": "2026-08-10T22:46:32.747Z",
+      "data": {
+        "status": "executing",
+        "audit": [
+          "job_created",
+          "intent_parsed",
+          "catalog_searched",
+          "candidate_found",
+          "candidate_found",
+          "fallback_generation",
+          "fallback_generation"
+        ],
+        "pendingFallback": null,
+        "quote": null,
+        "execution": null,
+        "error": null
+      }
+    },
+    {
+      "step": "STEP 2 poll 3 (http 200)",
+      "at": "2026-08-10T22:46:37.941Z",
+      "data": {
+        "status": "awaiting_payment",
+        "audit": [
+          "job_created",
+          "intent_parsed",
+          "catalog_searched",
+          "candidate_found",
+          "candidate_found",
+          "fallback_generation",
+          "fallback_generation",
+          "path_decided",
+          "fallback_generation"
+        ],
+        "pendingFallback": {
+          "workflowId": "rqyes5u2z6v4xenxcgbrb",
+          "name": "dca-0x89f97c-1785768081790 (Copy) 2",
+          "buildPath": "template",
+          "workflowCreatedAt": "2026-08-10T22:46:35.460Z"
+        },
+        "quote": null,
+        "execution": null,
+        "error": null
+      }
+    },
+    {
+      "step": "STEP 3: decision record at the gate",
+      "at": "2026-08-10T22:46:37.941Z",
+      "data": {
+        "decision": {
+          "source": "generated_fallback",
+          "workflow_id": "rqyes5u2z6v4xenxcgbrb",
+          "workflow_created_at": "2026-08-10T22:46:35.460Z",
+          "workflow_owner_address": null,
+          "discover_call": {
+            "request": {
+              "method": "tools/call",
+              "name": "search_workflows",
+              "params": [
+                {
+                  "query": "Verify anchor commitment Base demo",
+                  "sort": "popular",
+                  "chainId": 8453
+                },
+                {
+                  "query": "verify anchor commitment",
+                  "sort": "popular",
+                  "chainId": 8453
+                },
+                {
+                  "query": "defi",
+                  "sort": "popular",
+                  "chainId": 8453
+                }
+              ]
+            },
+            "response": {
+              "count": 11,
+              "candidates": [
+                {
+                  "id": "r36u35fyn9i7gqu3f7phx",
+                  "slug": "wallet-snapshot-base",
+                  "name": "Aave V3 Liquidation Risk Check — Base",
+                  "priceUsdcPerCall": 0.01,
+                  "organizationId": "461a4bde-07c7-4573-9fcb-60796a162152",
+                  "chain": null,
+                  "listedAt": "2026-05-03T12:51:37.934Z"
+                },
+                {
+                  "id": "3iny5wt69bk44iw02yol2",
+                  "slug": "defi-onchain-intelligence-base",
+                  "name": "DeFi On-Chain Intelligence — Aave Yield + Aerodrome Liquidity",
+                  "priceUsdcPerCall": 0.01,
+                  "organizationId": "f5a5bc0a-c898-41dd-9244-440fa5e07e6b",
+                  "chain": "8453",
+                  "listedAt": "2026-07-09T15:16:34.326Z"
+                },
+                {
+                  "id": "3vexmvfkue1heqfu6hztd",
+                  "slug": "yield-scanner",
+                  "name": "Yield Scanner",
+                  "priceUsdcPerCall": 0.05,
+                  "organizationId": "843b61f1-4504-481a-9176-000c99362095",
+                  "chain": null,
+                  "listedAt": "2026-07-23T09:27:52.452Z"
+                },
+                {
+                  "id": "a40p61fc5giezg56hqolu",
+                  "slug": "defi-risk-snapshot",
+                  "name": "DeFi Risk Snapshot",
+                  "priceUsdcPerCall": 0.01,
+                  "organizationId": "EDKxp3XqFCvHfKhm7JdKj8H9kMJ0iZT2",
+                  "chain": null,
+                  "listedAt": "2026-04-27T11:16:43.966Z"
+                },
+                {
+                  "id": "f1rq5h53nwylfywdle3j7",
+                  "slug": "aave-v3-health-check",
+                  "name": "Aave v3 Health Check",
+                  "priceUsdcPerCall": 0.01,
+                  "organizationId": "EDKxp3XqFCvHfKhm7JdKj8H9kMJ0iZT2",
+                  "chain": null,
+                  "listedAt": "2026-04-29T09:11:21.091Z"
+                },
+                {
+                  "id": "tp6ngl0elazwhkc830rkz",
+                  "slug": "liquidation-watcher-base",
+                  "name": "Liquidation Watcher: Wallet on Base",
+                  "priceUsdcPerCall": 0.05,
+                  "organizationId": "WFAec7NA3mr8zVE1bUSrhK8V3VXDamtQ",
+                  "chain": "8453",
+                  "listedAt": "2026-05-06T04:34:55.123Z"
+                },
+                {
+                  "id": "bng962e1kc8pf4j6vkfr9",
+                  "slug": "token-approval-risk-scanner-base",
+                  "name": "Token Approval Risk Scanner: Wallet on Base",
+                  "priceUsdcPerCall": 0.05,
+                  "organizationId": "WFAec7NA3mr8zVE1bUSrhK8V3VXDamtQ",
+                  "chain": "8453",
+                  "listedAt": "2026-05-06T05:06:01.577Z"
+                },
+                {
+                  "id": "vub8whqek8dykcg4gu8mt",
+                  "slug": "claimlayer-paid-claimall",
+                  "name": "ClaimLayer Paid ClaimAll",
+                  "priceUsdcPerCall": 0,
+                  "organizationId": "dcfc626e-21e3-4a69-99c8-ffb7c99e8eee",
+                  "chain": null,
+                  "listedAt": "2026-05-07T06:04:51.657Z"
+                },
+                {
+                  "id": "pbkb9kru29wuddz5qasck",
+                  "slug": "simple-workflow",
+                  "name": "LendPay",
+                  "priceUsdcPerCall": 0,
+                  "organizationId": "dcfc626e-21e3-4a69-99c8-ffb7c99e8eee",
+                  "chain": null,
+                  "listedAt": "2026-04-30T16:38:40.703Z"
+                },
+                {
+                  "id": "j8ret4y9uj0ayvej8mhiz",
+                  "slug": "defi-position-aggregator-base",
+                  "name": "DeFi Position Aggregator: Wallet on Base",
+                  "priceUsdcPerCall": 0,
+                  "organizationId": "WFAec7NA3mr8zVE1bUSrhK8V3VXDamtQ",
+                  "chain": "8453",
+                  "listedAt": "2026-05-06T05:40:06.712Z"
+                },
+                {
+                  "id": "3bd8mec4g3abnwp2qo4af",
+                  "slug": "og-paid-beta-signup",
+                  "name": "OG Paid Beta Signup",
+                  "priceUsdcPerCall": 0,
+                  "organizationId": "dcfc626e-21e3-4a69-99c8-ffb7c99e8eee",
+                  "chain": null,
+                  "listedAt": "2026-05-06T17:21:13.865Z"
+                }
+              ]
+            }
+          },
+          "generate_call": {
+            "request": {
+              "method": "tools/call",
+              "name": "ai_generate_workflow",
+              "arguments": {
+                "prompt": "Verify the anchor commitment on Base for the demo run"
+              },
+              "params": {}
+            },
+            "response": {
+              "workflowId": "rqyes5u2z6v4xenxcgbrb",
+              "name": "dca-0x89f97c-1785768081790 (Copy) 2",
+              "buildPath": "template",
+              "workflowCreatedAt": "2026-08-10T22:46:35.460Z",
+              "executionId": null,
+              "status": null,
+              "verified": false,
+              "executionTxHash": null
+            }
+          }
+        },
+        "decisionRecord": null
+      }
+    },
+    {
+      "step": "STEP 3: pendingFallback (workflow must exist, NOT launched)",
+      "at": "2026-08-10T22:46:37.942Z",
+      "data": {
+        "workflowId": "rqyes5u2z6v4xenxcgbrb",
+        "name": "dca-0x89f97c-1785768081790 (Copy) 2",
+        "buildPath": "template",
+        "workflowCreatedAt": "2026-08-10T22:46:35.460Z"
+      }
+    },
+    {
+      "step": "STEP 4: POST /api/broker/jobs/:id/resume (explicit authorization)",
+      "at": "2026-08-10T22:46:37.942Z"
+    },
+    {
+      "step": "STEP 4 RESPONSE (raw)",
+      "at": "2026-08-10T22:46:38.790Z",
+      "data": {
+        "httpStatus": 200,
+        "body": {
+          "ok": true,
+          "job": {
+            "id": "1786401982509-hpg0hxx",
+            "status": "executing",
+            "spec": {
+              "goal": "Verify the anchor commitment on Base for the demo run",
+              "query": "Verify anchor commitment Base demo",
+              "params": {},
+              "budgetUsdc": 0.5,
+              "chainId": 8453,
+              "maxPriceUsdc": 0.25
+            },
+            "accountEmail": null,
+            "createdAt": "2026-08-10T22:46:22.509Z",
+            "updatedAt": "2026-08-10T22:46:38.041Z",
+            "candidates": [
+              {
+                "id": "r36u35fyn9i7gqu3f7phx",
+                "name": "Aave V3 Liquidation Risk Check — Base",
+                "slug": "wallet-snapshot-base",
+                "description": "Pay $0.01 USDC, get a real-time liquidation-risk snapshot for any Aave V3 borrower on Base mainnet. Returns the canonical Aave V3 account-level health metrics (totalCollateralBase, totalDebtBase, avai",
+                "priceUsdcPerCall": 0.01,
+                "inputSchema": {
+                  "borrower": {
+                    "type": "string",
+                    "description": "EVM address of the Aave V3 borrower to check on Base mainnet."
+                  }
+                },
+                "workflowType": "read",
+                "callCount": 16,
+                "isListed": true,
+                "organizationId": "461a4bde-07c7-4573-9fcb-60796a162152",
+                "category": null,
+                "chain": null,
+                "listedAt": "2026-05-03T12:51:37.934Z"
+              },
+              {
+                "id": "3iny5wt69bk44iw02yol2",
+                "name": "DeFi On-Chain Intelligence — Aave Yield + Aerodrome Liquidity",
+                "slug": "defi-onchain-intelligence-base",
+                "description": "Reads live DeFi state from Base blockchain: Aave V3 USDC normalized income index + Aerodrome WETH/USDC pool reserves. Pure on-chain data. Powered by KeeperHub DeFi Analysis Agent. Price: 0.01 USDC via",
+                "priceUsdcPerCall": 0.01,
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {},
+                  "description": "No inputs required. Returns live on-chain DeFi data from Base: Aave V3 USDC supply rate + Aerodrome WETH/USDC reserves."
+                },
+                "workflowType": "read",
+                "callCount": 7,
+                "isListed": true,
+                "organizationId": "f5a5bc0a-c898-41dd-9244-440fa5e07e6b",
+                "category": "defi",
+                "chain": "8453",
+                "listedAt": "2026-07-09T15:16:34.326Z"
+              },
+              {
+                "id": "3vexmvfkue1heqfu6hztd",
+                "name": "Yield Scanner",
+                "slug": "yield-scanner",
+                "description": "Scans DeFi protocols for best yield opportunities",
+                "priceUsdcPerCall": 0.05,
+                "inputSchema": {
+                  "type": "object",
+                  "required": [
+                    "asset",
+                    "address"
+                  ],
+                  "properties": {
+                    "asset": {
+                      "type": "string"
+                    },
+                    "address": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "workflowType": "read",
+                "callCount": 6,
+                "isListed": true,
+                "organizationId": "843b61f1-4504-481a-9176-000c99362095",
+                "category": null,
+                "chain": null,
+                "listedAt": "2026-07-23T09:27:52.452Z"
+              },
+              {
+                "id": "a40p61fc5giezg56hqolu",
+                "name": "DeFi Risk Snapshot",
+                "slug": "defi-risk-snapshot",
+                "description": "Checks Aave v3 position health for a wallet address across both Ethereum mainnet and Base simultaneously. Returns a consolidated risk report: all active positions, whether any are at risk (health fact",
+                "priceUsdcPerCall": 0.01,
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {
+                    "address": {
+                      "type": "string",
+                      "description": "EVM wallet address to check (0x...)"
+                    }
+                  }
+                },
+                "workflowType": "read",
+                "callCount": 4,
+                "isListed": true,
+                "organizationId": "EDKxp3XqFCvHfKhm7JdKj8H9kMJ0iZT2",
+                "category": null,
+                "chain": null,
+                "listedAt": "2026-04-27T11:16:43.966Z"
+              },
+              {
+                "id": "f1rq5h53nwylfywdle3j7",
+                "name": "Aave v3 Health Check",
+                "slug": "aave-v3-health-check",
+                "description": "Checks the health of an Aave v3 position for any wallet address on Ethereum mainnet. Returns health factor (normalized), total collateral in USD, total debt in USD, available borrow capacity, and a pl",
+                "priceUsdcPerCall": 0.01,
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {
+                    "address": {
+                      "type": "string",
+                      "description": "EVM wallet address to check"
+                    }
+                  }
+                },
+                "workflowType": "read",
+                "callCount": 3,
+                "isListed": true,
+                "organizationId": "EDKxp3XqFCvHfKhm7JdKj8H9kMJ0iZT2",
+                "category": null,
+                "chain": null,
+                "listedAt": "2026-04-29T09:11:21.091Z"
+              },
+              {
+                "id": "tp6ngl0elazwhkc830rkz",
+                "name": "Liquidation Watcher: Wallet on Base",
+                "slug": "liquidation-watcher-base",
+                "description": "Computes a wallet's distance to liquidation across Aave V3 on Base. Returns per-protocol health factor, % collateral drop required to reach HF=1, and a summary block flagging the riskiest protocol. Co",
+                "priceUsdcPerCall": 0.05,
+                "inputSchema": {
+                  "type": "object",
+                  "required": [
+                    "wallet"
+                  ],
+                  "properties": {
+                    "wallet": {
+                      "type": "string",
+                      "description": "Wallet address (0x...) to check liquidation distance for. Must be a valid Base-compatible EVM address."
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "workflowType": "read",
+                "callCount": 1,
+                "isListed": true,
+                "organizationId": "WFAec7NA3mr8zVE1bUSrhK8V3VXDamtQ",
+                "category": "defi",
+                "chain": "8453",
+                "listedAt": "2026-05-06T04:34:55.123Z"
+              },
+              {
+                "id": "bng962e1kc8pf4j6vkfr9",
+                "name": "Token Approval Risk Scanner: Wallet on Base",
+                "slug": "token-approval-risk-scanner-base",
+                "description": "Audits a wallet's outstanding USDC approvals on Base across the major DeFi spenders, flagging unlimited allowances and oversized approvals. Universal pre-flight check for any agent about to spend a wa",
+                "priceUsdcPerCall": 0.05,
+                "inputSchema": {
+                  "type": "object",
+                  "required": [
+                    "wallet"
+                  ],
+                  "properties": {
+                    "wallet": {
+                      "type": "string",
+                      "description": "Wallet address (0x...) to scan ERC-20 approvals for. Must be a valid Base-compatible EVM address."
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "workflowType": "read",
+                "callCount": 1,
+                "isListed": true,
+                "organizationId": "WFAec7NA3mr8zVE1bUSrhK8V3VXDamtQ",
+                "category": "defi",
+                "chain": "8453",
+                "listedAt": "2026-05-06T05:06:01.577Z"
+              },
+              {
+                "id": "vub8whqek8dykcg4gu8mt",
+                "name": "ClaimLayer Paid ClaimAll",
+                "slug": "claimlayer-paid-claimall",
+                "description": "Repay your DeFi loan with a single USDC payment from Base. LendPay verifies the transaction and automatically completes the repayment—no bridging or switching chains needed.",
+                "priceUsdcPerCall": 0,
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {
+                    "txid": {
+                      "type": "string"
+                    },
+                    "targetChain": {
+                      "type": "string"
+                    },
+                    "paymentChain": {
+                      "type": "string"
+                    },
+                    "paymentAmount": {
+                      "type": "string"
+                    },
+                    "targetAddress": {
+                      "type": "string"
+                    },
+                    "paymentAddress": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "workflowType": "read",
+                "callCount": 0,
+                "isListed": true,
+                "organizationId": "dcfc626e-21e3-4a69-99c8-ffb7c99e8eee",
+                "category": null,
+                "chain": null,
+                "listedAt": "2026-05-07T06:04:51.657Z"
+              },
+              {
+                "id": "pbkb9kru29wuddz5qasck",
+                "name": "LendPay",
+                "slug": "simple-workflow",
+                "description": "Repay your DeFi loan with a single USDC payment from Base. LendPay verifies the transaction and automatically completes the repayment—no bridging or switching chains needed.",
+                "priceUsdcPerCall": 0,
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {
+                    "txid": {
+                      "type": "string",
+                      "description": "tx hash"
+                    },
+                    "amount": {
+                      "type": "number",
+                      "description": "payment amount"
+                    }
+                  }
+                },
+                "workflowType": "read",
+                "callCount": 0,
+                "isListed": true,
+                "organizationId": "dcfc626e-21e3-4a69-99c8-ffb7c99e8eee",
+                "category": null,
+                "chain": null,
+                "listedAt": "2026-04-30T16:38:40.703Z"
+              },
+              {
+                "id": "j8ret4y9uj0ayvej8mhiz",
+                "name": "DeFi Position Aggregator: Wallet on Base",
+                "slug": "defi-position-aggregator-base",
+                "description": "Aggregates a wallet's DeFi positions across the major lending and yield venues KeeperHub supports on Base in a single call - Aave V3 (with health factor), Compound V3 USDC market, Morpho Steakhouse US",
+                "priceUsdcPerCall": 0,
+                "inputSchema": {
+                  "type": "object",
+                  "required": [
+                    "wallet"
+                  ],
+                  "properties": {
+                    "wallet": {
+                      "type": "string",
+                      "description": "Wallet address (0x...) to aggregate DeFi positions for. Must be a valid Base-compatible EVM address."
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "workflowType": "read",
+                "callCount": 0,
+                "isListed": true,
+                "organizationId": "WFAec7NA3mr8zVE1bUSrhK8V3VXDamtQ",
+                "category": "defi",
+                "chain": "8453",
+                "listedAt": "2026-05-06T05:40:06.712Z"
+              },
+              {
+                "id": "3bd8mec4g3abnwp2qo4af",
+                "name": "OG Paid Beta Signup",
+                "slug": "og-paid-beta-signup",
+                "description": "Repay your DeFi loan with a single USDC payment from Base. LendPay verifies the transaction and automatically completes the repayment—no bridging or switching chains needed.",
+                "priceUsdcPerCall": 0,
+                "inputSchema": {
+                  "type": "object",
+                  "properties": {
+                    "": {
+                      "type": "string"
+                    },
+                    "txid": {
+                      "type": "string"
+                    },
+                    "chain": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "discord": {
+                      "type": "string"
+                    },
+                    "projectName": {
+                      "type": "string"
+                    },
+                    "governanceToken": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "workflowType": "read",
+                "callCount": 0,
+                "isListed": true,
+                "organizationId": "dcfc626e-21e3-4a69-99c8-ffb7c99e8eee",
+                "category": null,
+                "chain": null,
+                "listedAt": "2026-05-06T17:21:13.865Z"
+              }
+            ],
+            "selected": null,
+            "quote": null,
+            "payment": null,
+            "execution": null,
+            "audit": [
+              {
+                "id": "1786401982509-2zgfp7c",
+                "jobId": "1786401982509-hpg0hxx",
+                "type": "job_created",
+                "message": "Job 1786401982509-hpg0hxx created.",
+                "data": {
+                  "goal": "Verify the anchor commitment on Base for the demo run",
+                  "budgetUsdc": 0.5,
+                  "chainId": null,
+                  "payMode": "real"
+                },
+                "timestamp": "2026-08-10T22:46:22.509Z"
+              },
+              {
+                "id": "1786401985041-rwg40d7",
+                "jobId": "1786401982509-hpg0hxx",
+                "type": "intent_parsed",
+                "message": "Intent parsed into a job spec.",
+                "data": {
+                  "goal": "Verify the anchor commitment on Base for the demo run",
+                  "query": "Verify anchor commitment Base demo",
+                  "budgetUsdc": 0.5,
+                  "chainId": 8453
+                },
+                "timestamp": "2026-08-10T22:46:25.041Z"
+              },
+              {
+                "id": "1786401985473-6vyzfmk",
+                "jobId": "1786401982509-hpg0hxx",
+                "type": "catalog_searched",
+                "message": "Searching the live KeeperHub marketplace.",
+                "data": {
+                  "query": "Verify anchor commitment Base demo",
+                  "chainId": 8453
+                },
+                "timestamp": "2026-08-10T22:46:25.473Z"
+              },
+              {
+                "id": "1786401989388-slwf9dp",
+                "jobId": "1786401982509-hpg0hxx",
+                "type": "candidate_found",
+                "message": "Found 11 candidates.",
+                "data": {
+                  "slugs": [
+                    "wallet-snapshot-base",
+                    "defi-onchain-intelligence-base",
+                    "yield-scanner",
+                    "defi-risk-snapshot",
+                    "aave-v3-health-check",
+                    "liquidation-watcher-base",
+                    "token-approval-risk-scanner-base",
+                    "claimlayer-paid-claimall"
+                  ]
+                },
+                "timestamp": "2026-08-10T22:46:29.388Z"
+              },
+              {
+                "id": "1786401989389-ij7qa95",
+                "jobId": "1786401982509-hpg0hxx",
+                "type": "candidate_found",
+                "message": "Best matching listing scored 3.3 of 4 — below the relevance threshold. Generating a workflow instead of forcing an unrelated listing.",
+                "data": {
+                  "bestScore": 3.3,
+                  "threshold": 4,
+                  "slugs": [
+                    "wallet-snapshot-base",
+                    "defi-onchain-intelligence-base",
+                    "yield-scanner",
+                    "defi-risk-snapshot",
+                    "aave-v3-health-check",
+                    "liquidation-watcher-base",
+                    "token-approval-risk-scanner-base",
+                    "claimlayer-paid-claimall"
+                  ]
+                },
+                "timestamp": "2026-08-10T22:46:29.389Z"
+              },
+              {
+                "id": "1786401989389-nni41i3",
+                "jobId": "1786401982509-hpg0hxx",
+                "type": "fallback_generation",
+                "message": "No marketplace listing genuinely matches the intent (best score 3.3); generating a workflow as last resort.",
+                "data": null,
+                "timestamp": "2026-08-10T22:46:29.389Z"
+              },
+              {
+                "id": "1786401989389-n1ftpzg",
+                "jobId": "1786401982509-hpg0hxx",
+                "type": "fallback_generation",
+                "message": "No reliable marketplace listing remains; generating a workflow as last resort.",
+                "data": null,
+                "timestamp": "2026-08-10T22:46:29.389Z"
+              },
+              {
+                "id": "1786401995461-jukals3",
+                "jobId": "1786401982509-hpg0hxx",
+                "type": "path_decided",
+                "message": "Decision path: generated_fallback.",
+                "data": {
+                  "source": "generated_fallback",
+                  "workflow_id": "rqyes5u2z6v4xenxcgbrb",
+                  "workflow_created_at": "2026-08-10T22:46:35.460Z",
+                  "workflow_owner_address": null
+                },
+                "timestamp": "2026-08-10T22:46:35.461Z"
+              },
+              {
+                "id": "1786401995461-964enu5",
+                "jobId": "1786401982509-hpg0hxx",
+                "type": "fallback_generation",
+                "message": "Generated fallback workflow requires explicit user authorization before execution.",
+                "data": {
+                  "workflowId": "rqyes5u2z6v4xenxcgbrb",
+                  "name": "dca-0x89f97c-1785768081790 (Copy) 2",
+                  "buildPath": "template",
+                  "payMode": "real"
+                },
+                "timestamp": "2026-08-10T22:46:35.461Z"
+              },
+              {
+                "id": "1786401998041-14wrkjg",
+                "jobId": "1786401982509-hpg0hxx",
+                "type": "user_authorized",
+                "message": "User explicitly authorized fallback workflow execution from UI.",
+                "data": null,
+                "timestamp": "2026-08-10T22:46:38.041Z"
+              }
+            ],
+            "report": null,
+            "error": null,
+            "forcedSlug": null,
+            "payMode": "real",
+            "decision": {
+              "source": "generated_fallback",
+              "workflow_id": "rqyes5u2z6v4xenxcgbrb",
+              "workflow_created_at": "2026-08-10T22:46:35.460Z",
+              "workflow_owner_address": null,
+              "discover_call": {
+                "request": {
+                  "method": "tools/call",
+                  "name": "search_workflows",
+                  "params": [
+                    {
+                      "query": "Verify anchor commitment Base demo",
+                      "sort": "popular",
+                      "chainId": 8453
+                    },
+                    {
+                      "query": "verify anchor commitment",
+                      "sort": "popular",
+                      "chainId": 8453
+                    },
+                    {
+                      "query": "defi",
+                      "sort": "popular",
+                      "chainId": 8453
+                    }
+                  ]
+                },
+                "response": {
+                  "count": 11,
+                  "candidates": [
+                    {
+                      "id": "r36u35fyn9i7gqu3f7phx",
+                      "slug": "wallet-snapshot-base",
+                      "name": "Aave V3 Liquidation Risk Check — Base",
+                      "priceUsdcPerCall": 0.01,
+                      "organizationId": "461a4bde-07c7-4573-9fcb-60796a162152",
+                      "chain": null,
+                      "listedAt": "2026-05-03T12:51:37.934Z"
+                    },
+                    {
+                      "id": "3iny5wt69bk44iw02yol2",
+                      "slug": "defi-onchain-intelligence-base",
+                      "name": "DeFi On-Chain Intelligence — Aave Yield + Aerodrome Liquidity",
+                      "priceUsdcPerCall": 0.01,
+                      "organizationId": "f5a5bc0a-c898-41dd-9244-440fa5e07e6b",
+                      "chain": "8453",
+                      "listedAt": "2026-07-09T15:16:34.326Z"
+                    },
+                    {
+                      "id": "3vexmvfkue1heqfu6hztd",
+                      "slug": "yield-scanner",
+                      "name": "Yield Scanner",
+                      "priceUsdcPerCall": 0.05,
+                      "organizationId": "843b61f1-4504-481a-9176-000c99362095",
+                      "chain": null,
+                      "listedAt": "2026-07-23T09:27:52.452Z"
+                    },
+                    {
+                      "id": "a40p61fc5giezg56hqolu",
+                      "slug": "defi-risk-snapshot",
+                      "name": "DeFi Risk Snapshot",
+                      "priceUsdcPerCall": 0.01,
+                      "organizationId": "EDKxp3XqFCvHfKhm7JdKj8H9kMJ0iZT2",
+                      "chain": null,
+                      "listedAt": "2026-04-27T11:16:43.966Z"
+                    },
+                    {
+                      "id": "f1rq5h53nwylfywdle3j7",
+                      "slug": "aave-v3-health-check",
+                      "name": "Aave v3 Health Check",
+                      "priceUsdcPerCall": 0.01,
+                      "organizationId": "EDKxp3XqFCvHfKhm7JdKj8H9kMJ0iZT2",
+                      "chain": null,
+                      "listedAt": "2026-04-29T09:11:21.091Z"
+                    },
+                    {
+                      "id": "tp6ngl0elazwhkc830rkz",
+                      "slug": "liquidation-watcher-base",
+                      "name": "Liquidation Watcher: Wallet on Base",
+                      "priceUsdcPerCall": 0.05,
+                      "organizationId": "WFAec7NA3mr8zVE1bUSrhK8V3VXDamtQ",
+                      "chain": "8453",
+                      "listedAt": "2026-05-06T04:34:55.123Z"
+                    },
+                    {
+                      "id": "bng962e1kc8pf4j6vkfr9",
+                      "slug": "token-approval-risk-scanner-base",
+                      "name": "Token Approval Risk Scanner: Wallet on Base",
+                      "priceUsdcPerCall": 0.05,
+                      "organizationId": "WFAec7NA3mr8zVE1bUSrhK8V3VXDamtQ",
+                      "chain": "8453",
+                      "listedAt": "2026-05-06T05:06:01.577Z"
+                    },
+                    {
+                      "id": "vub8whqek8dykcg4gu8mt",
+                      "slug": "claimlayer-paid-claimall",
+                      "name": "ClaimLayer Paid ClaimAll",
+                      "priceUsdcPerCall": 0,
+                      "organizationId": "dcfc626e-21e3-4a69-99c8-ffb7c99e8eee",
+                      "chain": null,
+                      "listedAt": "2026-05-07T06:04:51.657Z"
+                    },
+                    {
+                      "id": "pbkb9kru29wuddz5qasck",
+                      "slug": "simple-workflow",
+                      "name": "LendPay",
+                      "priceUsdcPerCall": 0,
+                      "organizationId": "dcfc626e-21e3-4a69-99c8-ffb7c99e8eee",
+                      "chain": null,
+                      "listedAt": "2026-04-30T16:38:40.703Z"
+                    },
+                    {
+                      "id": "j8ret4y9uj0ayvej8mhiz",
+                      "slug": "defi-position-aggregator-base",
+                      "name": "DeFi Position Aggregator: Wallet on Base",
+                      "priceUsdcPerCall": 0,
+                      "organizationId": "WFAec7NA3mr8zVE1bUSrhK8V3VXDamtQ",
+                      "chain": "8453",
+                      "listedAt": "2026-05-06T05:40:06.712Z"
+                    },
+                    {
+                      "id": "3bd8mec4g3abnwp2qo4af",
+                      "slug": "og-paid-beta-signup",
+                      "name": "OG Paid Beta Signup",
+                      "priceUsdcPerCall": 0,
+                      "organizationId": "dcfc626e-21e3-4a69-99c8-ffb7c99e8eee",
+                      "chain": null,
+                      "listedAt": "2026-05-06T17:21:13.865Z"
+                    }
+                  ]
+                }
+              },
+              "generate_call": {
+                "request": {
+                  "method": "tools/call",
+                  "name": "ai_generate_workflow",
+                  "arguments": {
+                    "prompt": "Verify the anchor commitment on Base for the demo run"
+                  },
+                  "params": {}
+                },
+                "response": {
+                  "workflowId": "rqyes5u2z6v4xenxcgbrb",
+                  "name": "dca-0x89f97c-1785768081790 (Copy) 2",
+                  "buildPath": "template",
+                  "workflowCreatedAt": "2026-08-10T22:46:35.460Z",
+                  "executionId": null,
+                  "status": null,
+                  "verified": false,
+                  "executionTxHash": null
+                }
+              }
+            },
+            "decisionRecord": null,
+            "proof": null,
+            "pendingFallback": {
+              "workflowId": "rqyes5u2z6v4xenxcgbrb",
+              "name": "dca-0x89f97c-1785768081790 (Copy) 2",
+              "buildPath": "template",
+              "workflowCreatedAt": "2026-08-10T22:46:35.460Z"
+            }
+          }
+        }
+      }
+    },
+    {
+      "step": "STEP 5: poll until terminal state",
+      "at": "2026-08-10T22:46:38.790Z"
+    },
+    {
+      "step": "STEP 5 poll 1 (http 200)",
+      "at": "2026-08-10T22:46:43.942Z",
+      "data": {
+        "status": "failed",
+        "audit": [
+          "job_created",
+          "intent_parsed",
+          "catalog_searched",
+          "candidate_found",
+          "candidate_found",
+          "fallback_generation",
+          "fallback_generation",
+          "path_decided",
+          "fallback_generation",
+          "user_authorized",
+          "verification_failed",
+          "completion_unverified"
+        ],
+        "execution": {
+          "executionId": "fv00al1p55x77nhiqj3yr",
+          "status": "error",
+          "output": null,
+          "completed": false,
+          "failed": true,
+          "error": "Invalid function arguments: params.tokenIn: address is missing",
+          "verified": false,
+          "receipts": [],
+          "executionTxHash": null
+        },
+        "error": "Invalid function arguments: params.tokenIn: address is missing"
+      }
+    },
+    {
+      "step": "STEP 6: terminal job (full raw)",
+      "at": "2026-08-10T22:46:43.943Z",
+      "data": {
+        "id": "1786401982509-hpg0hxx",
+        "status": "failed",
+        "spec": {
+          "goal": "Verify the anchor commitment on Base for the demo run",
+          "query": "Verify anchor commitment Base demo",
+          "params": {},
+          "budgetUsdc": 0.5,
+          "chainId": 8453,
+          "maxPriceUsdc": 0.25
+        },
+        "accountEmail": null,
+        "createdAt": "2026-08-10T22:46:22.509Z",
+        "updatedAt": "2026-08-10T22:46:40.929Z",
+        "candidates": [
+          {
+            "id": "r36u35fyn9i7gqu3f7phx",
+            "name": "Aave V3 Liquidation Risk Check — Base",
+            "slug": "wallet-snapshot-base",
+            "description": "Pay $0.01 USDC, get a real-time liquidation-risk snapshot for any Aave V3 borrower on Base mainnet. Returns the canonical Aave V3 account-level health metrics (totalCollateralBase, totalDebtBase, avai",
+            "priceUsdcPerCall": 0.01,
+            "inputSchema": {
+              "borrower": {
+                "type": "string",
+                "description": "EVM address of the Aave V3 borrower to check on Base mainnet."
+              }
+            },
+            "workflowType": "read",
+            "callCount": 16,
+            "isListed": true,
+            "organizationId": "461a4bde-07c7-4573-9fcb-60796a162152",
+            "category": null,
+            "chain": null,
+            "listedAt": "2026-05-03T12:51:37.934Z"
+          },
+          {
+            "id": "3iny5wt69bk44iw02yol2",
+            "name": "DeFi On-Chain Intelligence — Aave Yield + Aerodrome Liquidity",
+            "slug": "defi-onchain-intelligence-base",
+            "description": "Reads live DeFi state from Base blockchain: Aave V3 USDC normalized income index + Aerodrome WETH/USDC pool reserves. Pure on-chain data. Powered by KeeperHub DeFi Analysis Agent. Price: 0.01 USDC via",
+            "priceUsdcPerCall": 0.01,
+            "inputSchema": {
+              "type": "object",
+              "properties": {},
+              "description": "No inputs required. Returns live on-chain DeFi data from Base: Aave V3 USDC supply rate + Aerodrome WETH/USDC reserves."
+            },
+            "workflowType": "read",
+            "callCount": 7,
+            "isListed": true,
+            "organizationId": "f5a5bc0a-c898-41dd-9244-440fa5e07e6b",
+            "category": "defi",
+            "chain": "8453",
+            "listedAt": "2026-07-09T15:16:34.326Z"
+          },
+          {
+            "id": "3vexmvfkue1heqfu6hztd",
+            "name": "Yield Scanner",
+            "slug": "yield-scanner",
+            "description": "Scans DeFi protocols for best yield opportunities",
+            "priceUsdcPerCall": 0.05,
+            "inputSchema": {
+              "type": "object",
+              "required": [
+                "asset",
+                "address"
+              ],
+              "properties": {
+                "asset": {
+                  "type": "string"
+                },
+                "address": {
+                  "type": "string"
+                }
+              }
+            },
+            "workflowType": "read",
+            "callCount": 6,
+            "isListed": true,
+            "organizationId": "843b61f1-4504-481a-9176-000c99362095",
+            "category": null,
+            "chain": null,
+            "listedAt": "2026-07-23T09:27:52.452Z"
+          },
+          {
+            "id": "a40p61fc5giezg56hqolu",
+            "name": "DeFi Risk Snapshot",
+            "slug": "defi-risk-snapshot",
+            "description": "Checks Aave v3 position health for a wallet address across both Ethereum mainnet and Base simultaneously. Returns a consolidated risk report: all active positions, whether any are at risk (health fact",
+            "priceUsdcPerCall": 0.01,
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "address": {
+                  "type": "string",
+                  "description": "EVM wallet address to check (0x...)"
+                }
+              }
+            },
+            "workflowType": "read",
+            "callCount": 4,
+            "isListed": true,
+            "organizationId": "EDKxp3XqFCvHfKhm7JdKj8H9kMJ0iZT2",
+            "category": null,
+            "chain": null,
+            "listedAt": "2026-04-27T11:16:43.966Z"
+          },
+          {
+            "id": "f1rq5h53nwylfywdle3j7",
+            "name": "Aave v3 Health Check",
+            "slug": "aave-v3-health-check",
+            "description": "Checks the health of an Aave v3 position for any wallet address on Ethereum mainnet. Returns health factor (normalized), total collateral in USD, total debt in USD, available borrow capacity, and a pl",
+            "priceUsdcPerCall": 0.01,
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "address": {
+                  "type": "string",
+                  "description": "EVM wallet address to check"
+                }
+              }
+            },
+            "workflowType": "read",
+            "callCount": 3,
+            "isListed": true,
+            "organizationId": "EDKxp3XqFCvHfKhm7JdKj8H9kMJ0iZT2",
+            "category": null,
+            "chain": null,
+            "listedAt": "2026-04-29T09:11:21.091Z"
+          },
+          {
+            "id": "tp6ngl0elazwhkc830rkz",
+            "name": "Liquidation Watcher: Wallet on Base",
+            "slug": "liquidation-watcher-base",
+            "description": "Computes a wallet's distance to liquidation across Aave V3 on Base. Returns per-protocol health factor, % collateral drop required to reach HF=1, and a summary block flagging the riskiest protocol. Co",
+            "priceUsdcPerCall": 0.05,
+            "inputSchema": {
+              "type": "object",
+              "required": [
+                "wallet"
+              ],
+              "properties": {
+                "wallet": {
+                  "type": "string",
+                  "description": "Wallet address (0x...) to check liquidation distance for. Must be a valid Base-compatible EVM address."
+                }
+              },
+              "additionalProperties": false
+            },
+            "workflowType": "read",
+            "callCount": 1,
+            "isListed": true,
+            "organizationId": "WFAec7NA3mr8zVE1bUSrhK8V3VXDamtQ",
+            "category": "defi",
+            "chain": "8453",
+            "listedAt": "2026-05-06T04:34:55.123Z"
+          },
+          {
+            "id": "bng962e1kc8pf4j6vkfr9",
+            "name": "Token Approval Risk Scanner: Wallet on Base",
+            "slug": "token-approval-risk-scanner-base",
+            "description": "Audits a wallet's outstanding USDC approvals on Base across the major DeFi spenders, flagging unlimited allowances and oversized approvals. Universal pre-flight check for any agent about to spend a wa",
+            "priceUsdcPerCall": 0.05,
+            "inputSchema": {
+              "type": "object",
+              "required": [
+                "wallet"
+              ],
+              "properties": {
+                "wallet": {
+                  "type": "string",
+                  "description": "Wallet address (0x...) to scan ERC-20 approvals for. Must be a valid Base-compatible EVM address."
+                }
+              },
+              "additionalProperties": false
+            },
+            "workflowType": "read",
+            "callCount": 1,
+            "isListed": true,
+            "organizationId": "WFAec7NA3mr8zVE1bUSrhK8V3VXDamtQ",
+            "category": "defi",
+            "chain": "8453",
+            "listedAt": "2026-05-06T05:06:01.577Z"
+          },
+          {
+            "id": "vub8whqek8dykcg4gu8mt",
+            "name": "ClaimLayer Paid ClaimAll",
+            "slug": "claimlayer-paid-claimall",
+            "description": "Repay your DeFi loan with a single USDC payment from Base. LendPay verifies the transaction and automatically completes the repayment—no bridging or switching chains needed.",
+            "priceUsdcPerCall": 0,
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "txid": {
+                  "type": "string"
+                },
+                "targetChain": {
+                  "type": "string"
+                },
+                "paymentChain": {
+                  "type": "string"
+                },
+                "paymentAmount": {
+                  "type": "string"
+                },
+                "targetAddress": {
+                  "type": "string"
+                },
+                "paymentAddress": {
+                  "type": "string"
+                }
+              }
+            },
+            "workflowType": "read",
+            "callCount": 0,
+            "isListed": true,
+            "organizationId": "dcfc626e-21e3-4a69-99c8-ffb7c99e8eee",
+            "category": null,
+            "chain": null,
+            "listedAt": "2026-05-07T06:04:51.657Z"
+          },
+          {
+            "id": "pbkb9kru29wuddz5qasck",
+            "name": "LendPay",
+            "slug": "simple-workflow",
+            "description": "Repay your DeFi loan with a single USDC payment from Base. LendPay verifies the transaction and automatically completes the repayment—no bridging or switching chains needed.",
+            "priceUsdcPerCall": 0,
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "txid": {
+                  "type": "string",
+                  "description": "tx hash"
+                },
+                "amount": {
+                  "type": "number",
+                  "description": "payment amount"
+                }
+              }
+            },
+            "workflowType": "read",
+            "callCount": 0,
+            "isListed": true,
+            "organizationId": "dcfc626e-21e3-4a69-99c8-ffb7c99e8eee",
+            "category": null,
+            "chain": null,
+            "listedAt": "2026-04-30T16:38:40.703Z"
+          },
+          {
+            "id": "j8ret4y9uj0ayvej8mhiz",
+            "name": "DeFi Position Aggregator: Wallet on Base",
+            "slug": "defi-position-aggregator-base",
+            "description": "Aggregates a wallet's DeFi positions across the major lending and yield venues KeeperHub supports on Base in a single call - Aave V3 (with health factor), Compound V3 USDC market, Morpho Steakhouse US",
+            "priceUsdcPerCall": 0,
+            "inputSchema": {
+              "type": "object",
+              "required": [
+                "wallet"
+              ],
+              "properties": {
+                "wallet": {
+                  "type": "string",
+                  "description": "Wallet address (0x...) to aggregate DeFi positions for. Must be a valid Base-compatible EVM address."
+                }
+              },
+              "additionalProperties": false
+            },
+            "workflowType": "read",
+            "callCount": 0,
+            "isListed": true,
+            "organizationId": "WFAec7NA3mr8zVE1bUSrhK8V3VXDamtQ",
+            "category": "defi",
+            "chain": "8453",
+            "listedAt": "2026-05-06T05:40:06.712Z"
+          },
+          {
+            "id": "3bd8mec4g3abnwp2qo4af",
+            "name": "OG Paid Beta Signup",
+            "slug": "og-paid-beta-signup",
+            "description": "Repay your DeFi loan with a single USDC payment from Base. LendPay verifies the transaction and automatically completes the repayment—no bridging or switching chains needed.",
+            "priceUsdcPerCall": 0,
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "": {
+                  "type": "string"
+                },
+                "txid": {
+                  "type": "string"
+                },
+                "chain": {
+                  "type": "string"
+                },
+                "email": {
+                  "type": "string"
+                },
+                "discord": {
+                  "type": "string"
+                },
+                "projectName": {
+                  "type": "string"
+                },
+                "governanceToken": {
+                  "type": "string"
+                }
+              }
+            },
+            "workflowType": "read",
+            "callCount": 0,
+            "isListed": true,
+            "organizationId": "dcfc626e-21e3-4a69-99c8-ffb7c99e8eee",
+            "category": null,
+            "chain": null,
+            "listedAt": "2026-05-06T17:21:13.865Z"
+          }
+        ],
+        "selected": null,
+        "quote": null,
+        "payment": null,
+        "execution": {
+          "executionId": "fv00al1p55x77nhiqj3yr",
+          "status": "error",
+          "output": null,
+          "completed": false,
+          "failed": true,
+          "error": "Invalid function arguments: params.tokenIn: address is missing",
+          "verified": false,
+          "receipts": [],
+          "executionTxHash": null
+        },
+        "audit": [
+          {
+            "id": "1786401982509-2zgfp7c",
+            "jobId": "1786401982509-hpg0hxx",
+            "type": "job_created",
+            "message": "Job 1786401982509-hpg0hxx created.",
+            "data": {
+              "goal": "Verify the anchor commitment on Base for the demo run",
+              "budgetUsdc": 0.5,
+              "chainId": null,
+              "payMode": "real"
+            },
+            "timestamp": "2026-08-10T22:46:22.509Z"
+          },
+          {
+            "id": "1786401985041-rwg40d7",
+            "jobId": "1786401982509-hpg0hxx",
+            "type": "intent_parsed",
+            "message": "Intent parsed into a job spec.",
+            "data": {
+              "goal": "Verify the anchor commitment on Base for the demo run",
+              "query": "Verify anchor commitment Base demo",
+              "budgetUsdc": 0.5,
+              "chainId": 8453
+            },
+            "timestamp": "2026-08-10T22:46:25.041Z"
+          },
+          {
+            "id": "1786401985473-6vyzfmk",
+            "jobId": "1786401982509-hpg0hxx",
+            "type": "catalog_searched",
+            "message": "Searching the live KeeperHub marketplace.",
+            "data": {
+              "query": "Verify anchor commitment Base demo",
+              "chainId": 8453
+            },
+            "timestamp": "2026-08-10T22:46:25.473Z"
+          },
+          {
+            "id": "1786401989388-slwf9dp",
+            "jobId": "1786401982509-hpg0hxx",
+            "type": "candidate_found",
+            "message": "Found 11 candidates.",
+            "data": {
+              "slugs": [
+                "wallet-snapshot-base",
+                "defi-onchain-intelligence-base",
+                "yield-scanner",
+                "defi-risk-snapshot",
+                "aave-v3-health-check",
+                "liquidation-watcher-base",
+                "token-approval-risk-scanner-base",
+                "claimlayer-paid-claimall"
+              ]
+            },
+            "timestamp": "2026-08-10T22:46:29.388Z"
+          },
+          {
+            "id": "1786401989389-ij7qa95",
+            "jobId": "1786401982509-hpg0hxx",
+            "type": "candidate_found",
+            "message": "Best matching listing scored 3.3 of 4 — below the relevance threshold. Generating a workflow instead of forcing an unrelated listing.",
+            "data": {
+              "bestScore": 3.3,
+              "threshold": 4,
+              "slugs": [
+                "wallet-snapshot-base",
+                "defi-onchain-intelligence-base",
+                "yield-scanner",
+                "defi-risk-snapshot",
+                "aave-v3-health-check",
+                "liquidation-watcher-base",
+                "token-approval-risk-scanner-base",
+                "claimlayer-paid-claimall"
+              ]
+            },
+            "timestamp": "2026-08-10T22:46:29.389Z"
+          },
+          {
+            "id": "1786401989389-nni41i3",
+            "jobId": "1786401982509-hpg0hxx",
+            "type": "fallback_generation",
+            "message": "No marketplace listing genuinely matches the intent (best score 3.3); generating a workflow as last resort.",
+            "data": null,
+            "timestamp": "2026-08-10T22:46:29.389Z"
+          },
+          {
+            "id": "1786401989389-n1ftpzg",
+            "jobId": "1786401982509-hpg0hxx",
+            "type": "fallback_generation",
+            "message": "No reliable marketplace listing remains; generating a workflow as last resort.",
+            "data": null,
+            "timestamp": "2026-08-10T22:46:29.389Z"
+          },
+          {
+            "id": "1786401995461-jukals3",
+            "jobId": "1786401982509-hpg0hxx",
+            "type": "path_decided",
+            "message": "Decision path: generated_fallback.",
+            "data": {
+              "source": "generated_fallback",
+              "workflow_id": "rqyes5u2z6v4xenxcgbrb",
+              "workflow_created_at": "2026-08-10T22:46:35.460Z",
+              "workflow_owner_address": null
+            },
+            "timestamp": "2026-08-10T22:46:35.461Z"
+          },
+          {
+            "id": "1786401995461-964enu5",
+            "jobId": "1786401982509-hpg0hxx",
+            "type": "fallback_generation",
+            "message": "Generated fallback workflow requires explicit user authorization before execution.",
+            "data": {
+              "workflowId": "rqyes5u2z6v4xenxcgbrb",
+              "name": "dca-0x89f97c-1785768081790 (Copy) 2",
+              "buildPath": "template",
+              "payMode": "real"
+            },
+            "timestamp": "2026-08-10T22:46:35.461Z"
+          },
+          {
+            "id": "1786401998041-14wrkjg",
+            "jobId": "1786401982509-hpg0hxx",
+            "type": "user_authorized",
+            "message": "User explicitly authorized fallback workflow execution from UI.",
+            "data": null,
+            "timestamp": "2026-08-10T22:46:38.041Z"
+          },
+          {
+            "id": "1786402000929-aqqdw9c",
+            "jobId": "1786401982509-hpg0hxx",
+            "type": "verification_failed",
+            "message": "Workflow launched but completion was NOT confirmed within the polling window.",
+            "data": {
+              "executionId": "fv00al1p55x77nhiqj3yr",
+              "workflowId": "rqyes5u2z6v4xenxcgbrb",
+              "error": "Invalid function arguments: params.tokenIn: address is missing",
+              "hint": "Confirm the run in the KeeperHub dashboard before trusting the outcome."
+            },
+            "timestamp": "2026-08-10T22:46:40.929Z"
+          },
+          {
+            "id": "1786402000929-my75utw",
+            "jobId": "1786401982509-hpg0hxx",
+            "type": "completion_unverified",
+            "message": "Completion UNVERIFIED — failing checks: payment_tx_hash present; payment independently confirmed (Base block explorer); execution_tx_hash present; execution confirmed via KeeperHub status endpoint.",
+            "data": {
+              "status": "unverified",
+              "checks": [
+                {
+                  "name": "payment_tx_hash present",
+                  "ok": false
+                },
+                {
+                  "name": "payment independently confirmed (Base block explorer)",
+                  "ok": false
+                },
+                {
+                  "name": "execution_tx_hash present",
+                  "ok": false
+                },
+                {
+                  "name": "execution confirmed via KeeperHub status endpoint",
+                  "ok": false
+                },
+                {
+                  "name": "workflow_id present",
+                  "ok": true
+                }
+              ]
+            },
+            "timestamp": "2026-08-10T22:46:40.929Z"
+          }
+        ],
+        "report": "Job 1786401982509-hpg0hxx failed.\n\nGoal: Verify the anchor commitment on Base for the demo run\nError: Invalid function arguments: params.tokenIn: address is missing\n\nNo payment was finalized and no execution was confirmed as completed.",
+        "error": "Invalid function arguments: params.tokenIn: address is missing",
+        "forcedSlug": null,
+        "payMode": "real",
+        "decision": {
+          "source": "generated_fallback",
+          "workflow_id": "rqyes5u2z6v4xenxcgbrb",
+          "workflow_created_at": "2026-08-10T22:46:35.460Z",
+          "workflow_owner_address": null,
+          "discover_call": {
+            "request": {
+              "method": "tools/call",
+              "name": "search_workflows",
+              "params": [
+                {
+                  "query": "Verify anchor commitment Base demo",
+                  "sort": "popular",
+                  "chainId": 8453
+                },
+                {
+                  "query": "verify anchor commitment",
+                  "sort": "popular",
+                  "chainId": 8453
+                },
+                {
+                  "query": "defi",
+                  "sort": "popular",
+                  "chainId": 8453
+                }
+              ]
+            },
+            "response": {
+              "count": 11,
+              "candidates": [
+                {
+                  "id": "r36u35fyn9i7gqu3f7phx",
+                  "slug": "wallet-snapshot-base",
+                  "name": "Aave V3 Liquidation Risk Check — Base",
+                  "priceUsdcPerCall": 0.01,
+                  "organizationId": "461a4bde-07c7-4573-9fcb-60796a162152",
+                  "chain": null,
+                  "listedAt": "2026-05-03T12:51:37.934Z"
+                },
+                {
+                  "id": "3iny5wt69bk44iw02yol2",
+                  "slug": "defi-onchain-intelligence-base",
+                  "name": "DeFi On-Chain Intelligence — Aave Yield + Aerodrome Liquidity",
+                  "priceUsdcPerCall": 0.01,
+                  "organizationId": "f5a5bc0a-c898-41dd-9244-440fa5e07e6b",
+                  "chain": "8453",
+                  "listedAt": "2026-07-09T15:16:34.326Z"
+                },
+                {
+                  "id": "3vexmvfkue1heqfu6hztd",
+                  "slug": "yield-scanner",
+                  "name": "Yield Scanner",
+                  "priceUsdcPerCall": 0.05,
+                  "organizationId": "843b61f1-4504-481a-9176-000c99362095",
+                  "chain": null,
+                  "listedAt": "2026-07-23T09:27:52.452Z"
+                },
+                {
+                  "id": "a40p61fc5giezg56hqolu",
+                  "slug": "defi-risk-snapshot",
+                  "name": "DeFi Risk Snapshot",
+                  "priceUsdcPerCall": 0.01,
+                  "organizationId": "EDKxp3XqFCvHfKhm7JdKj8H9kMJ0iZT2",
+                  "chain": null,
+                  "listedAt": "2026-04-27T11:16:43.966Z"
+                },
+                {
+                  "id": "f1rq5h53nwylfywdle3j7",
+                  "slug": "aave-v3-health-check",
+                  "name": "Aave v3 Health Check",
+                  "priceUsdcPerCall": 0.01,
+                  "organizationId": "EDKxp3XqFCvHfKhm7JdKj8H9kMJ0iZT2",
+                  "chain": null,
+                  "listedAt": "2026-04-29T09:11:21.091Z"
+                },
+                {
+                  "id": "tp6ngl0elazwhkc830rkz",
+                  "slug": "liquidation-watcher-base",
+                  "name": "Liquidation Watcher: Wallet on Base",
+                  "priceUsdcPerCall": 0.05,
+                  "organizationId": "WFAec7NA3mr8zVE1bUSrhK8V3VXDamtQ",
+                  "chain": "8453",
+                  "listedAt": "2026-05-06T04:34:55.123Z"
+                },
+                {
+                  "id": "bng962e1kc8pf4j6vkfr9",
+                  "slug": "token-approval-risk-scanner-base",
+                  "name": "Token Approval Risk Scanner: Wallet on Base",
+                  "priceUsdcPerCall": 0.05,
+                  "organizationId": "WFAec7NA3mr8zVE1bUSrhK8V3VXDamtQ",
+                  "chain": "8453",
+                  "listedAt": "2026-05-06T05:06:01.577Z"
+                },
+                {
+                  "id": "vub8whqek8dykcg4gu8mt",
+                  "slug": "claimlayer-paid-claimall",
+                  "name": "ClaimLayer Paid ClaimAll",
+                  "priceUsdcPerCall": 0,
+                  "organizationId": "dcfc626e-21e3-4a69-99c8-ffb7c99e8eee",
+                  "chain": null,
+                  "listedAt": "2026-05-07T06:04:51.657Z"
+                },
+                {
+                  "id": "pbkb9kru29wuddz5qasck",
+                  "slug": "simple-workflow",
+                  "name": "LendPay",
+                  "priceUsdcPerCall": 0,
+                  "organizationId": "dcfc626e-21e3-4a69-99c8-ffb7c99e8eee",
+                  "chain": null,
+                  "listedAt": "2026-04-30T16:38:40.703Z"
+                },
+                {
+                  "id": "j8ret4y9uj0ayvej8mhiz",
+                  "slug": "defi-position-aggregator-base",
+                  "name": "DeFi Position Aggregator: Wallet on Base",
+                  "priceUsdcPerCall": 0,
+                  "organizationId": "WFAec7NA3mr8zVE1bUSrhK8V3VXDamtQ",
+                  "chain": "8453",
+                  "listedAt": "2026-05-06T05:40:06.712Z"
+                },
+                {
+                  "id": "3bd8mec4g3abnwp2qo4af",
+                  "slug": "og-paid-beta-signup",
+                  "name": "OG Paid Beta Signup",
+                  "priceUsdcPerCall": 0,
+                  "organizationId": "dcfc626e-21e3-4a69-99c8-ffb7c99e8eee",
+                  "chain": null,
+                  "listedAt": "2026-05-06T17:21:13.865Z"
+                }
+              ]
+            }
+          },
+          "generate_call": {
+            "request": {
+              "method": "tools/call",
+              "name": "ai_generate_workflow",
+              "arguments": {
+                "prompt": "Verify the anchor commitment on Base for the demo run"
+              },
+              "params": {}
+            },
+            "response": {
+              "workflowId": "rqyes5u2z6v4xenxcgbrb",
+              "name": "dca-0x89f97c-1785768081790 (Copy) 2",
+              "buildPath": "template",
+              "workflowCreatedAt": "2026-08-10T22:46:35.460Z",
+              "executionId": null,
+              "status": null,
+              "verified": false,
+              "executionTxHash": null
+            }
+          }
+        },
+        "decisionRecord": null,
+        "proof": {
+          "status": "unverified",
+          "payment_tx_hash": null,
+          "payment_confirmed": {
+            "ok": false,
+            "how": "Base x402 settlement",
+            "detail": "payment.status=none — no tx_hash recorded"
+          },
+          "execution_tx_hash": null,
+          "execution_confirmed": {
+            "ok": false,
+            "how": "KeeperHub get_execution status endpoint",
+            "detail": "verified=false, completed=false, error=Invalid function arguments: params.tokenIn: address is missing"
+          },
+          "workflow_id": "rqyes5u2z6v4xenxcgbrb"
+        },
+        "pendingFallback": {
+          "workflowId": "rqyes5u2z6v4xenxcgbrb",
+          "name": "dca-0x89f97c-1785768081790 (Copy) 2",
+          "buildPath": "template",
+          "workflowCreatedAt": "2026-08-10T22:46:35.460Z"
+        }
+      }
+    },
+    {
+      "step": "STEP 6: report",
+      "at": "2026-08-10T22:46:43.943Z",
+      "data": "Job 1786401982509-hpg0hxx failed.\n\nGoal: Verify the anchor commitment on Base for the demo run\nError: Invalid function arguments: params.tokenIn: address is missing\n\nNo payment was finalized and no execution was confirmed as completed."
+    },
+    {
+      "step": "STEP 6: completion proof",
+      "at": "2026-08-10T22:46:43.943Z",
+      "data": {
+        "status": "unverified",
+        "payment_tx_hash": null,
+        "payment_confirmed": {
+          "ok": false,
+          "how": "Base x402 settlement",
+          "detail": "payment.status=none — no tx_hash recorded"
+        },
+        "execution_tx_hash": null,
+        "execution_confirmed": {
+          "ok": false,
+          "how": "KeeperHub get_execution status endpoint",
+          "detail": "verified=false, completed=false, error=Invalid function arguments: params.tokenIn: address is missing"
+        },
+        "workflow_id": "rqyes5u2z6v4xenxcgbrb"
+      }
+    },
+    {
+      "step": "STEP 6: EXECUTION TX HASH",
+      "at": "2026-08-10T22:46:43.943Z",
+      "data": null
+    }
+  ],
+  "finishedAt": "2026-08-10T22:46:43.943Z",
+  "terminal": {
+    "id": "1786401982509-hpg0hxx",
+    "status": "failed",
+    "spec": {
+      "goal": "Verify the anchor commitment on Base for the demo run",
+      "query": "Verify anchor commitment Base demo",
+      "params": {},
+      "budgetUsdc": 0.5,
+      "chainId": 8453,
+      "maxPriceUsdc": 0.25
+    },
+    "accountEmail": null,
+    "createdAt": "2026-08-10T22:46:22.509Z",
+    "updatedAt": "2026-08-10T22:46:40.929Z",
+    "candidates": [
+      {
+        "id": "r36u35fyn9i7gqu3f7phx",
+        "name": "Aave V3 Liquidation Risk Check — Base",
+        "slug": "wallet-snapshot-base",
+        "description": "Pay $0.01 USDC, get a real-time liquidation-risk snapshot for any Aave V3 borrower on Base mainnet. Returns the canonical Aave V3 account-level health metrics (totalCollateralBase, totalDebtBase, avai",
+        "priceUsdcPerCall": 0.01,
+        "inputSchema": {
+          "borrower": {
+            "type": "string",
+            "description": "EVM address of the Aave V3 borrower to check on Base mainnet."
+          }
+        },
+        "workflowType": "read",
+        "callCount": 16,
+        "isListed": true,
+        "organizationId": "461a4bde-07c7-4573-9fcb-60796a162152",
+        "category": null,
+        "chain": null,
+        "listedAt": "2026-05-03T12:51:37.934Z"
+      },
+      {
+        "id": "3iny5wt69bk44iw02yol2",
+        "name": "DeFi On-Chain Intelligence — Aave Yield + Aerodrome Liquidity",
+        "slug": "defi-onchain-intelligence-base",
+        "description": "Reads live DeFi state from Base blockchain: Aave V3 USDC normalized income index + Aerodrome WETH/USDC pool reserves. Pure on-chain data. Powered by KeeperHub DeFi Analysis Agent. Price: 0.01 USDC via",
+        "priceUsdcPerCall": 0.01,
+        "inputSchema": {
+          "type": "object",
+          "properties": {},
+          "description": "No inputs required. Returns live on-chain DeFi data from Base: Aave V3 USDC supply rate + Aerodrome WETH/USDC reserves."
+        },
+        "workflowType": "read",
+        "callCount": 7,
+        "isListed": true,
+        "organizationId": "f5a5bc0a-c898-41dd-9244-440fa5e07e6b",
+        "category": "defi",
+        "chain": "8453",
+        "listedAt": "2026-07-09T15:16:34.326Z"
+      },
+      {
+        "id": "3vexmvfkue1heqfu6hztd",
+        "name": "Yield Scanner",
+        "slug": "yield-scanner",
+        "description": "Scans DeFi protocols for best yield opportunities",
+        "priceUsdcPerCall": 0.05,
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "asset",
+            "address"
+          ],
+          "properties": {
+            "asset": {
+              "type": "string"
+            },
+            "address": {
+              "type": "string"
+            }
+          }
+        },
+        "workflowType": "read",
+        "callCount": 6,
+        "isListed": true,
+        "organizationId": "843b61f1-4504-481a-9176-000c99362095",
+        "category": null,
+        "chain": null,
+        "listedAt": "2026-07-23T09:27:52.452Z"
+      },
+      {
+        "id": "a40p61fc5giezg56hqolu",
+        "name": "DeFi Risk Snapshot",
+        "slug": "defi-risk-snapshot",
+        "description": "Checks Aave v3 position health for a wallet address across both Ethereum mainnet and Base simultaneously. Returns a consolidated risk report: all active positions, whether any are at risk (health fact",
+        "priceUsdcPerCall": 0.01,
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "address": {
+              "type": "string",
+              "description": "EVM wallet address to check (0x...)"
+            }
+          }
+        },
+        "workflowType": "read",
+        "callCount": 4,
+        "isListed": true,
+        "organizationId": "EDKxp3XqFCvHfKhm7JdKj8H9kMJ0iZT2",
+        "category": null,
+        "chain": null,
+        "listedAt": "2026-04-27T11:16:43.966Z"
+      },
+      {
+        "id": "f1rq5h53nwylfywdle3j7",
+        "name": "Aave v3 Health Check",
+        "slug": "aave-v3-health-check",
+        "description": "Checks the health of an Aave v3 position for any wallet address on Ethereum mainnet. Returns health factor (normalized), total collateral in USD, total debt in USD, available borrow capacity, and a pl",
+        "priceUsdcPerCall": 0.01,
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "address": {
+              "type": "string",
+              "description": "EVM wallet address to check"
+            }
+          }
+        },
+        "workflowType": "read",
+        "callCount": 3,
+        "isListed": true,
+        "organizationId": "EDKxp3XqFCvHfKhm7JdKj8H9kMJ0iZT2",
+        "category": null,
+        "chain": null,
+        "listedAt": "2026-04-29T09:11:21.091Z"
+      },
+      {
+        "id": "tp6ngl0elazwhkc830rkz",
+        "name": "Liquidation Watcher: Wallet on Base",
+        "slug": "liquidation-watcher-base",
+        "description": "Computes a wallet's distance to liquidation across Aave V3 on Base. Returns per-protocol health factor, % collateral drop required to reach HF=1, and a summary block flagging the riskiest protocol. Co",
+        "priceUsdcPerCall": 0.05,
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "wallet"
+          ],
+          "properties": {
+            "wallet": {
+              "type": "string",
+              "description": "Wallet address (0x...) to check liquidation distance for. Must be a valid Base-compatible EVM address."
+            }
+          },
+          "additionalProperties": false
+        },
+        "workflowType": "read",
+        "callCount": 1,
+        "isListed": true,
+        "organizationId": "WFAec7NA3mr8zVE1bUSrhK8V3VXDamtQ",
+        "category": "defi",
+        "chain": "8453",
+        "listedAt": "2026-05-06T04:34:55.123Z"
+      },
+      {
+        "id": "bng962e1kc8pf4j6vkfr9",
+        "name": "Token Approval Risk Scanner: Wallet on Base",
+        "slug": "token-approval-risk-scanner-base",
+        "description": "Audits a wallet's outstanding USDC approvals on Base across the major DeFi spenders, flagging unlimited allowances and oversized approvals. Universal pre-flight check for any agent about to spend a wa",
+        "priceUsdcPerCall": 0.05,
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "wallet"
+          ],
+          "properties": {
+            "wallet": {
+              "type": "string",
+              "description": "Wallet address (0x...) to scan ERC-20 approvals for. Must be a valid Base-compatible EVM address."
+            }
+          },
+          "additionalProperties": false
+        },
+        "workflowType": "read",
+        "callCount": 1,
+        "isListed": true,
+        "organizationId": "WFAec7NA3mr8zVE1bUSrhK8V3VXDamtQ",
+        "category": "defi",
+        "chain": "8453",
+        "listedAt": "2026-05-06T05:06:01.577Z"
+      },
+      {
+        "id": "vub8whqek8dykcg4gu8mt",
+        "name": "ClaimLayer Paid ClaimAll",
+        "slug": "claimlayer-paid-claimall",
+        "description": "Repay your DeFi loan with a single USDC payment from Base. LendPay verifies the transaction and automatically completes the repayment—no bridging or switching chains needed.",
+        "priceUsdcPerCall": 0,
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "txid": {
+              "type": "string"
+            },
+            "targetChain": {
+              "type": "string"
+            },
+            "paymentChain": {
+              "type": "string"
+            },
+            "paymentAmount": {
+              "type": "string"
+            },
+            "targetAddress": {
+              "type": "string"
+            },
+            "paymentAddress": {
+              "type": "string"
+            }
+          }
+        },
+        "workflowType": "read",
+        "callCount": 0,
+        "isListed": true,
+        "organizationId": "dcfc626e-21e3-4a69-99c8-ffb7c99e8eee",
+        "category": null,
+        "chain": null,
+        "listedAt": "2026-05-07T06:04:51.657Z"
+      },
+      {
+        "id": "pbkb9kru29wuddz5qasck",
+        "name": "LendPay",
+        "slug": "simple-workflow",
+        "description": "Repay your DeFi loan with a single USDC payment from Base. LendPay verifies the transaction and automatically completes the repayment—no bridging or switching chains needed.",
+        "priceUsdcPerCall": 0,
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "txid": {
+              "type": "string",
+              "description": "tx hash"
+            },
+            "amount": {
+              "type": "number",
+              "description": "payment amount"
+            }
+          }
+        },
+        "workflowType": "read",
+        "callCount": 0,
+        "isListed": true,
+        "organizationId": "dcfc626e-21e3-4a69-99c8-ffb7c99e8eee",
+        "category": null,
+        "chain": null,
+        "listedAt": "2026-04-30T16:38:40.703Z"
+      },
+      {
+        "id": "j8ret4y9uj0ayvej8mhiz",
+        "name": "DeFi Position Aggregator: Wallet on Base",
+        "slug": "defi-position-aggregator-base",
+        "description": "Aggregates a wallet's DeFi positions across the major lending and yield venues KeeperHub supports on Base in a single call - Aave V3 (with health factor), Compound V3 USDC market, Morpho Steakhouse US",
+        "priceUsdcPerCall": 0,
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "wallet"
+          ],
+          "properties": {
+            "wallet": {
+              "type": "string",
+              "description": "Wallet address (0x...) to aggregate DeFi positions for. Must be a valid Base-compatible EVM address."
+            }
+          },
+          "additionalProperties": false
+        },
+        "workflowType": "read",
+        "callCount": 0,
+        "isListed": true,
+        "organizationId": "WFAec7NA3mr8zVE1bUSrhK8V3VXDamtQ",
+        "category": "defi",
+        "chain": "8453",
+        "listedAt": "2026-05-06T05:40:06.712Z"
+      },
+      {
+        "id": "3bd8mec4g3abnwp2qo4af",
+        "name": "OG Paid Beta Signup",
+        "slug": "og-paid-beta-signup",
+        "description": "Repay your DeFi loan with a single USDC payment from Base. LendPay verifies the transaction and automatically completes the repayment—no bridging or switching chains needed.",
+        "priceUsdcPerCall": 0,
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "": {
+              "type": "string"
+            },
+            "txid": {
+              "type": "string"
+            },
+            "chain": {
+              "type": "string"
+            },
+            "email": {
+              "type": "string"
+            },
+            "discord": {
+              "type": "string"
+            },
+            "projectName": {
+              "type": "string"
+            },
+            "governanceToken": {
+              "type": "string"
+            }
+          }
+        },
+        "workflowType": "read",
+        "callCount": 0,
+        "isListed": true,
+        "organizationId": "dcfc626e-21e3-4a69-99c8-ffb7c99e8eee",
+        "category": null,
+        "chain": null,
+        "listedAt": "2026-05-06T17:21:13.865Z"
+      }
+    ],
+    "selected": null,
+    "quote": null,
+    "payment": null,
+    "execution": {
+      "executionId": "fv00al1p55x77nhiqj3yr",
+      "status": "error",
+      "output": null,
+      "completed": false,
+      "failed": true,
+      "error": "Invalid function arguments: params.tokenIn: address is missing",
+      "verified": false,
+      "receipts": [],
+      "executionTxHash": null
+    },
+    "audit": [
+      {
+        "id": "1786401982509-2zgfp7c",
+        "jobId": "1786401982509-hpg0hxx",
+        "type": "job_created",
+        "message": "Job 1786401982509-hpg0hxx created.",
+        "data": {
+          "goal": "Verify the anchor commitment on Base for the demo run",
+          "budgetUsdc": 0.5,
+          "chainId": null,
+          "payMode": "real"
+        },
+        "timestamp": "2026-08-10T22:46:22.509Z"
+      },
+      {
+        "id": "1786401985041-rwg40d7",
+        "jobId": "1786401982509-hpg0hxx",
+        "type": "intent_parsed",
+        "message": "Intent parsed into a job spec.",
+        "data": {
+          "goal": "Verify the anchor commitment on Base for the demo run",
+          "query": "Verify anchor commitment Base demo",
+          "budgetUsdc": 0.5,
+          "chainId": 8453
+        },
+        "timestamp": "2026-08-10T22:46:25.041Z"
+      },
+      {
+        "id": "1786401985473-6vyzfmk",
+        "jobId": "1786401982509-hpg0hxx",
+        "type": "catalog_searched",
+        "message": "Searching the live KeeperHub marketplace.",
+        "data": {
+          "query": "Verify anchor commitment Base demo",
+          "chainId": 8453
+        },
+        "timestamp": "2026-08-10T22:46:25.473Z"
+      },
+      {
+        "id": "1786401989388-slwf9dp",
+        "jobId": "1786401982509-hpg0hxx",
+        "type": "candidate_found",
+        "message": "Found 11 candidates.",
+        "data": {
+          "slugs": [
+            "wallet-snapshot-base",
+            "defi-onchain-intelligence-base",
+            "yield-scanner",
+            "defi-risk-snapshot",
+            "aave-v3-health-check",
+            "liquidation-watcher-base",
+            "token-approval-risk-scanner-base",
+            "claimlayer-paid-claimall"
+          ]
+        },
+        "timestamp": "2026-08-10T22:46:29.388Z"
+      },
+      {
+        "id": "1786401989389-ij7qa95",
+        "jobId": "1786401982509-hpg0hxx",
+        "type": "candidate_found",
+        "message": "Best matching listing scored 3.3 of 4 — below the relevance threshold. Generating a workflow instead of forcing an unrelated listing.",
+        "data": {
+          "bestScore": 3.3,
+          "threshold": 4,
+          "slugs": [
+            "wallet-snapshot-base",
+            "defi-onchain-intelligence-base",
+            "yield-scanner",
+            "defi-risk-snapshot",
+            "aave-v3-health-check",
+            "liquidation-watcher-base",
+            "token-approval-risk-scanner-base",
+            "claimlayer-paid-claimall"
+          ]
+        },
+        "timestamp": "2026-08-10T22:46:29.389Z"
+      },
+      {
+        "id": "1786401989389-nni41i3",
+        "jobId": "1786401982509-hpg0hxx",
+        "type": "fallback_generation",
+        "message": "No marketplace listing genuinely matches the intent (best score 3.3); generating a workflow as last resort.",
+        "data": null,
+        "timestamp": "2026-08-10T22:46:29.389Z"
+      },
+      {
+        "id": "1786401989389-n1ftpzg",
+        "jobId": "1786401982509-hpg0hxx",
+        "type": "fallback_generation",
+        "message": "No reliable marketplace listing remains; generating a workflow as last resort.",
+        "data": null,
+        "timestamp": "2026-08-10T22:46:29.389Z"
+      },
+      {
+        "id": "1786401995461-jukals3",
+        "jobId": "1786401982509-hpg0hxx",
+        "type": "path_decided",
+        "message": "Decision path: generated_fallback.",
+        "data": {
+          "source": "generated_fallback",
+          "workflow_id": "rqyes5u2z6v4xenxcgbrb",
+          "workflow_created_at": "2026-08-10T22:46:35.460Z",
+          "workflow_owner_address": null
+        },
+        "timestamp": "2026-08-10T22:46:35.461Z"
+      },
+      {
+        "id": "1786401995461-964enu5",
+        "jobId": "1786401982509-hpg0hxx",
+        "type": "fallback_generation",
+        "message": "Generated fallback workflow requires explicit user authorization before execution.",
+        "data": {
+          "workflowId": "rqyes5u2z6v4xenxcgbrb",
+          "name": "dca-0x89f97c-1785768081790 (Copy) 2",
+          "buildPath": "template",
+          "payMode": "real"
+        },
+        "timestamp": "2026-08-10T22:46:35.461Z"
+      },
+      {
+        "id": "1786401998041-14wrkjg",
+        "jobId": "1786401982509-hpg0hxx",
+        "type": "user_authorized",
+        "message": "User explicitly authorized fallback workflow execution from UI.",
+        "data": null,
+        "timestamp": "2026-08-10T22:46:38.041Z"
+      },
+      {
+        "id": "1786402000929-aqqdw9c",
+        "jobId": "1786401982509-hpg0hxx",
+        "type": "verification_failed",
+        "message": "Workflow launched but completion was NOT confirmed within the polling window.",
+        "data": {
+          "executionId": "fv00al1p55x77nhiqj3yr",
+          "workflowId": "rqyes5u2z6v4xenxcgbrb",
+          "error": "Invalid function arguments: params.tokenIn: address is missing",
+          "hint": "Confirm the run in the KeeperHub dashboard before trusting the outcome."
+        },
+        "timestamp": "2026-08-10T22:46:40.929Z"
+      },
+      {
+        "id": "1786402000929-my75utw",
+        "jobId": "1786401982509-hpg0hxx",
+        "type": "completion_unverified",
+        "message": "Completion UNVERIFIED — failing checks: payment_tx_hash present; payment independently confirmed (Base block explorer); execution_tx_hash present; execution confirmed via KeeperHub status endpoint.",
+        "data": {
+          "status": "unverified",
+          "checks": [
+            {
+              "name": "payment_tx_hash present",
+              "ok": false
+            },
+            {
+              "name": "payment independently confirmed (Base block explorer)",
+              "ok": false
+            },
+            {
+              "name": "execution_tx_hash present",
+              "ok": false
+            },
+            {
+              "name": "execution confirmed via KeeperHub status endpoint",
+              "ok": false
+            },
+            {
+              "name": "workflow_id present",
+              "ok": true
+            }
+          ]
+        },
+        "timestamp": "2026-08-10T22:46:40.929Z"
+      }
+    ],
+    "report": "Job 1786401982509-hpg0hxx failed.\n\nGoal: Verify the anchor commitment on Base for the demo run\nError: Invalid function arguments: params.tokenIn: address is missing\n\nNo payment was finalized and no execution was confirmed as completed.",
+    "error": "Invalid function arguments: params.tokenIn: address is missing",
+    "forcedSlug": null,
+    "payMode": "real",
+    "decision": {
+      "source": "generated_fallback",
+      "workflow_id": "rqyes5u2z6v4xenxcgbrb",
+      "workflow_created_at": "2026-08-10T22:46:35.460Z",
+      "workflow_owner_address": null,
+      "discover_call": {
+        "request": {
+          "method": "tools/call",
+          "name": "search_workflows",
+          "params": [
+            {
+              "query": "Verify anchor commitment Base demo",
+              "sort": "popular",
+              "chainId": 8453
+            },
+            {
+              "query": "verify anchor commitment",
+              "sort": "popular",
+              "chainId": 8453
+            },
+            {
+              "query": "defi",
+              "sort": "popular",
+              "chainId": 8453
+            }
+          ]
+        },
+        "response": {
+          "count": 11,
+          "candidates": [
+            {
+              "id": "r36u35fyn9i7gqu3f7phx",
+              "slug": "wallet-snapshot-base",
+              "name": "Aave V3 Liquidation Risk Check — Base",
+              "priceUsdcPerCall": 0.01,
+              "organizationId": "461a4bde-07c7-4573-9fcb-60796a162152",
+              "chain": null,
+              "listedAt": "2026-05-03T12:51:37.934Z"
+            },
+            {
+              "id": "3iny5wt69bk44iw02yol2",
+              "slug": "defi-onchain-intelligence-base",
+              "name": "DeFi On-Chain Intelligence — Aave Yield + Aerodrome Liquidity",
+              "priceUsdcPerCall": 0.01,
+              "organizationId": "f5a5bc0a-c898-41dd-9244-440fa5e07e6b",
+              "chain": "8453",
+              "listedAt": "2026-07-09T15:16:34.326Z"
+            },
+            {
+              "id": "3vexmvfkue1heqfu6hztd",
+              "slug": "yield-scanner",
+              "name": "Yield Scanner",
+              "priceUsdcPerCall": 0.05,
+              "organizationId": "843b61f1-4504-481a-9176-000c99362095",
+              "chain": null,
+              "listedAt": "2026-07-23T09:27:52.452Z"
+            },
+            {
+              "id": "a40p61fc5giezg56hqolu",
+              "slug": "defi-risk-snapshot",
+              "name": "DeFi Risk Snapshot",
+              "priceUsdcPerCall": 0.01,
+              "organizationId": "EDKxp3XqFCvHfKhm7JdKj8H9kMJ0iZT2",
+              "chain": null,
+              "listedAt": "2026-04-27T11:16:43.966Z"
+            },
+            {
+              "id": "f1rq5h53nwylfywdle3j7",
+              "slug": "aave-v3-health-check",
+              "name": "Aave v3 Health Check",
+              "priceUsdcPerCall": 0.01,
+              "organizationId": "EDKxp3XqFCvHfKhm7JdKj8H9kMJ0iZT2",
+              "chain": null,
+              "listedAt": "2026-04-29T09:11:21.091Z"
+            },
+            {
+              "id": "tp6ngl0elazwhkc830rkz",
+              "slug": "liquidation-watcher-base",
+              "name": "Liquidation Watcher: Wallet on Base",
+              "priceUsdcPerCall": 0.05,
+              "organizationId": "WFAec7NA3mr8zVE1bUSrhK8V3VXDamtQ",
+              "chain": "8453",
+              "listedAt": "2026-05-06T04:34:55.123Z"
+            },
+            {
+              "id": "bng962e1kc8pf4j6vkfr9",
+              "slug": "token-approval-risk-scanner-base",
+              "name": "Token Approval Risk Scanner: Wallet on Base",
+              "priceUsdcPerCall": 0.05,
+              "organizationId": "WFAec7NA3mr8zVE1bUSrhK8V3VXDamtQ",
+              "chain": "8453",
+              "listedAt": "2026-05-06T05:06:01.577Z"
+            },
+            {
+              "id": "vub8whqek8dykcg4gu8mt",
+              "slug": "claimlayer-paid-claimall",
+              "name": "ClaimLayer Paid ClaimAll",
+              "priceUsdcPerCall": 0,
+              "organizationId": "dcfc626e-21e3-4a69-99c8-ffb7c99e8eee",
+              "chain": null,
+              "listedAt": "2026-05-07T06:04:51.657Z"
+            },
+            {
+              "id": "pbkb9kru29wuddz5qasck",
+              "slug": "simple-workflow",
+              "name": "LendPay",
+              "priceUsdcPerCall": 0,
+              "organizationId": "dcfc626e-21e3-4a69-99c8-ffb7c99e8eee",
+              "chain": null,
+              "listedAt": "2026-04-30T16:38:40.703Z"
+            },
+            {
+              "id": "j8ret4y9uj0ayvej8mhiz",
+              "slug": "defi-position-aggregator-base",
+              "name": "DeFi Position Aggregator: Wallet on Base",
+              "priceUsdcPerCall": 0,
+              "organizationId": "WFAec7NA3mr8zVE1bUSrhK8V3VXDamtQ",
+              "chain": "8453",
+              "listedAt": "2026-05-06T05:40:06.712Z"
+            },
+            {
+              "id": "3bd8mec4g3abnwp2qo4af",
+              "slug": "og-paid-beta-signup",
+              "name": "OG Paid Beta Signup",
+              "priceUsdcPerCall": 0,
+              "organizationId": "dcfc626e-21e3-4a69-99c8-ffb7c99e8eee",
+              "chain": null,
+              "listedAt": "2026-05-06T17:21:13.865Z"
+            }
+          ]
+        }
+      },
+      "generate_call": {
+        "request": {
+          "method": "tools/call",
+          "name": "ai_generate_workflow",
+          "arguments": {
+            "prompt": "Verify the anchor commitment on Base for the demo run"
+          },
+          "params": {}
+        },
+        "response": {
+          "workflowId": "rqyes5u2z6v4xenxcgbrb",
+          "name": "dca-0x89f97c-1785768081790 (Copy) 2",
+          "buildPath": "template",
+          "workflowCreatedAt": "2026-08-10T22:46:35.460Z",
+          "executionId": null,
+          "status": null,
+          "verified": false,
+          "executionTxHash": null
+        }
+      }
+    },
+    "decisionRecord": null,
+    "proof": {
+      "status": "unverified",
+      "payment_tx_hash": null,
+      "payment_confirmed": {
+        "ok": false,
+        "how": "Base x402 settlement",
+        "detail": "payment.status=none — no tx_hash recorded"
+      },
+      "execution_tx_hash": null,
+      "execution_confirmed": {
+        "ok": false,
+        "how": "KeeperHub get_execution status endpoint",
+        "detail": "verified=false, completed=false, error=Invalid function arguments: params.tokenIn: address is missing"
+      },
+      "workflow_id": "rqyes5u2z6v4xenxcgbrb"
+    },
+    "pendingFallback": {
+      "workflowId": "rqyes5u2z6v4xenxcgbrb",
+      "name": "dca-0x89f97c-1785768081790 (Copy) 2",
+      "buildPath": "template",
+      "workflowCreatedAt": "2026-08-10T22:46:35.460Z"
+    }
+  }
+}

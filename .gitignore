@@ -39,14 +39,23 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
 
 .vercel
 
 # broker job store
 .data/
 
-server.log
+# logs
+*.log
 dev-*.log
-.env*
-
+server.log
 build-webpack.log
+
+# env files
+.env*
