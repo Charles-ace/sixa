@@ -408,14 +408,17 @@ export async function runJob(jobId: string, input: {
   }
 
   try {
+    const isDemo = Boolean(input.demoMode || input.payMode === 'demo' || job.spec.demoMode || job.payMode === 'demo');
     const spec = await intake({ message: input.message, budgetUsdc: input.budgetUsdc });
+    if (isDemo) spec.demoMode = true;
     job.spec = spec;
-    job.payMode = input.payMode ?? job.payMode;
+    job.payMode = isDemo ? 'demo' : (input.payMode ?? job.payMode);
     pushAudit(job, 'intent_parsed', 'Intent parsed into a job spec.', {
       goal: spec.goal,
       query: spec.query,
       budgetUsdc: spec.budgetUsdc,
       chainId: spec.chainId,
+      demoMode: isDemo,
     });
     await storeJob(job);
 
