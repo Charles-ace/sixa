@@ -32,6 +32,9 @@ export function AuthCard() {
     try {
       const result = await startEmailSignIn(email.trim());
       setDevCode(result.devCode);
+      if (result.devCode) {
+        setCode(result.devCode);
+      }
       setStep('code');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send code');
