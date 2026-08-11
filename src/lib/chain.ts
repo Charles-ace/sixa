@@ -3,12 +3,12 @@ import { mainnet, arbitrum, base, optimism, polygon, avalanche } from 'viem/chai
 import { SUPPORTED_NETWORKS } from './types';
 
 const publicClients = {
-  1: createPublicClient({ chain: mainnet, transport: http(SUPPORTED_NETWORKS[0].rpc) }),
-  42161: createPublicClient({ chain: arbitrum, transport: http(SUPPORTED_NETWORKS[1].rpc) }),
-  8453: createPublicClient({ chain: base, transport: http(SUPPORTED_NETWORKS[2].rpc) }),
-  10: createPublicClient({ chain: optimism, transport: http(SUPPORTED_NETWORKS[3].rpc) }),
-  137: createPublicClient({ chain: polygon, transport: http(SUPPORTED_NETWORKS[4].rpc) }),
-  43114: createPublicClient({ chain: avalanche, transport: http(SUPPORTED_NETWORKS[5].rpc) }),
+  8453: createPublicClient({ chain: base, transport: http('https://mainnet.base.org') }),
+  1: createPublicClient({ chain: mainnet, transport: http('https://eth.llamarpc.com') }),
+  42161: createPublicClient({ chain: arbitrum, transport: http('https://arb1.arbitrum.io/rpc') }),
+  10: createPublicClient({ chain: optimism, transport: http('https://mainnet.optimism.io') }),
+  137: createPublicClient({ chain: polygon, transport: http('https://polygon-rpc.com') }),
+  43114: createPublicClient({ chain: avalanche, transport: http('https://api.avax.network/ext/bc/C/rpc') }),
 };
 
 export interface TokenBalance {
@@ -37,6 +37,9 @@ const ERC20_ABI = [
 ] as const;
 
 const WELL_KNOWN_TOKENS: Record<number, { symbol: string; address: Address; decimals: number }[]> = {
+  8453: [
+    { symbol: 'USDC', address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', decimals: 6 },
+  ],
   1: [
     { symbol: 'USDC', address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', decimals: 6 },
     { symbol: 'USDT', address: '0xdAC17F958D2ee523a2206206994597C13D831ec7', decimals: 6 },
@@ -45,24 +48,21 @@ const WELL_KNOWN_TOKENS: Record<number, { symbol: string; address: Address; deci
     { symbol: 'WBTC', address: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599', decimals: 8 },
     { symbol: 'stETH', address: '0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84', decimals: 18 },
   ],
-  8453: [
-    { symbol: 'USDC', address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', decimals: 6 },
-  ],
 };
 
-export function getPublicClient(chainId: number) {
-  return publicClients[chainId as keyof typeof publicClients] ?? publicClients[1];
+export function getPublicClient(chainId = 8453) {
+  return publicClients[chainId as keyof typeof publicClients] ?? publicClients[8453];
 }
 
-export function getChainInfo(chainId: number) {
+export function getChainInfo(chainId = 8453) {
   return SUPPORTED_NETWORKS.find((n) => n.chainId === chainId) ?? SUPPORTED_NETWORKS[0];
 }
 
-export function getUsdPrice(symbol: string, chainId = 1): number {
+export function getUsdPrice(symbol: string, chainId = 8453): number {
   return USD_PRICES[symbol] ?? USD_PRICES[symbol === 'POL' && chainId !== 137 ? 'POL' : symbol] ?? 0;
 }
 
-export async function getWalletPortfolio(address: Address, chainId = 1): Promise<WalletPortfolio> {
+export async function getWalletPortfolio(address: Address, chainId = 8453): Promise<WalletPortfolio> {
   const client = getPublicClient(chainId);
   const chain = getChainInfo(chainId);
 

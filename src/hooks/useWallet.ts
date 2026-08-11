@@ -31,7 +31,7 @@ export interface WalletState {
 const initialWalletState: WalletState = {
   isConnected: false,
   isConnecting: false,
-  chainId: 1,
+  chainId: 8453,
   walletName: '',
   isRefreshing: false,
 };
@@ -71,16 +71,47 @@ export function useWallet() {
 
     try {
       const accounts = (await window.ethereum.request({ method: 'eth_requestAccounts' })) as string[];
-      const chainIdHex = (await window.ethereum.request({ method: 'eth_chainId' })) as string;
-      const chainId = parseInt(chainIdHex, 16);
+      let chainIdHex = (await window.ethereum.request({ method: 'eth_chainId' })) as string;
+      let currentChainId = parseInt(chainIdHex, 16);
+
+      // Auto-switch wallet to Base Mainnet (8453) if connected to Ethereum Mainnet (1) or another non-Base chain
+      if (currentChainId !== 8453 && currentChainId !== 84532) {
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0x2105' }],
+          });
+          chainIdHex = '0x2105';
+          currentChainId = 8453;
+        } catch (switchErr: any) {
+          if (switchErr?.code === 4902 || switchErr?.message?.includes('Unrecognized chain')) {
+            try {
+              await window.ethereum.request({
+                method: 'wallet_addEthereumChain',
+                params: [{
+                  chainId: '0x2105',
+                  chainName: 'Base Mainnet',
+                  nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+                  rpcUrls: ['https://mainnet.base.org'],
+                  blockExplorerUrls: ['https://basescan.org'],
+                }],
+              });
+              chainIdHex = '0x2105';
+              currentChainId = 8453;
+            } catch {
+              // add chain rejected
+            }
+          }
+        }
+      }
 
       const address = accounts[0] as Address;
       const walletName = detectWalletName();
 
-      setState({ isConnected: true, isConnecting: false, address, chainId, walletName, error: undefined, isRefreshing: false });
+      setState({ isConnected: true, isConnecting: false, address, chainId: currentChainId, walletName, error: undefined, isRefreshing: false });
 
       try {
-        const portfolio = await getWalletPortfolio(address, chainId);
+        const portfolio = await getWalletPortfolio(address, currentChainId);
         setState((prev) => ({ ...prev, portfolio }));
       } catch {
         // portfolio fetch can fail on unsupported networks

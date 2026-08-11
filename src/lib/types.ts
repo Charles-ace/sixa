@@ -104,9 +104,10 @@ export interface ChatMessage {
 }
 
 export const SUPPORTED_NETWORKS = [
+  { name: 'Base', chainId: 8453, shortName: 'base', symbol: 'ETH', rpc: 'https://mainnet.base.org' },
+  { name: 'Base Sepolia', chainId: 84532, shortName: 'base-sepolia', symbol: 'ETH', rpc: 'https://sepolia.base.org' },
   { name: 'Ethereum', chainId: 1, shortName: 'eth', symbol: 'ETH', rpc: 'https://eth.llamarpc.com' },
   { name: 'Arbitrum', chainId: 42161, shortName: 'arb', symbol: 'ETH', rpc: 'https://arb1.arbitrum.io/rpc' },
-  { name: 'Base', chainId: 8453, shortName: 'base', symbol: 'ETH', rpc: 'https://mainnet.base.org' },
   { name: 'Optimism', chainId: 10, shortName: 'op', symbol: 'ETH', rpc: 'https://mainnet.optimism.io' },
   { name: 'Polygon', chainId: 137, shortName: 'poly', symbol: 'POL', rpc: 'https://polygon-rpc.com' },
   { name: 'Avalanche', chainId: 43114, shortName: 'avax', symbol: 'AVAX', rpc: 'https://api.avax.network/ext/bc/C/rpc' },
