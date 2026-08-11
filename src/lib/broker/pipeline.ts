@@ -26,8 +26,10 @@ export async function createJob(input: {
   budgetUsdc?: number;
   forcedSlug?: string | null;
   payMode?: PaymentMode;
+  demoMode?: boolean;
 }): Promise<BrokerJob> {
   const jobId = generateId();
+  const isDemo = Boolean(input.demoMode || input.payMode === 'demo');
   const pendingSpec: JobSpec = {
     goal: input.message,
     query: '',
@@ -35,10 +37,11 @@ export async function createJob(input: {
     budgetUsdc: 0.5,
     chainId: null,
     maxPriceUsdc: 0.25,
+    demoMode: isDemo,
   };
   const job = newJob(jobId, pendingSpec, {
     ...input,
-    payMode: input.payMode,
+    payMode: isDemo ? 'demo' : input.payMode,
   });
   await storeJob(job);
   const runPromise = runJob(jobId, input);
@@ -474,6 +477,19 @@ async function executePipeline(job: BrokerJob): Promise<void> {
   const discoverCall = buildDiscoverCall(passes, candidates, discoverError ?? undefined);
   job.candidates = candidates;
   pushAudit(job, 'candidate_found', `Found ${candidates.length} candidates.`, { slugs: candidates.slice(0, 8).map((c) => c.slug) });
+
+  const isDemoMode = Boolean(job.spec.demoMode || job.payment?.mode === 'demo');
+  if (isDemoMode) {
+    const bestScore = candidates.length > 0 ? bestMatchScore(job.spec, candidates) : 0;
+    pushAudit(job, 'candidate_found', `Demo mode active: probed ${candidates.length} marketplace listings (best match score ${bestScore.toFixed(1)}). Bypassing mainnet payment attempt to execute free Base Sepolia fallback workflow.`, {
+      demoMode: true,
+      bestScore,
+      slugs: candidates.slice(0, 8).map((c) => c.slug),
+    });
+    pushAudit(job, 'fallback_generation', 'Demo mode active — proceeding directly to generation fallback on Base Sepolia.');
+    await attemptGenerationFallback(job, client, discoverCall);
+    return;
+  }
 
   if (candidates.length === 0) {
     pushAudit(job, 'fallback_generation', 'No marketplace listing matched the intent — generating a workflow instead.', { query: job.spec.query });

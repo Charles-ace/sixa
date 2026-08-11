@@ -29,8 +29,12 @@ export async function POST(request: NextRequest) {
 
     const budgetUsdc = typeof body.budgetUsdc === 'number' && body.budgetUsdc > 0 ? body.budgetUsdc : undefined;
     const forcedSlug = typeof body.forcedSlug === 'string' && body.forcedSlug ? body.forcedSlug : null;
+    const demoMode = Boolean(body.demoMode || body.payMode === 'demo');
     let payMode: PaymentMode | undefined;
-    if (body.payMode === 'real' || body.payMode === 'simulated') payMode = body.payMode;
+    if (body.payMode === 'real' || body.payMode === 'simulated' || body.payMode === 'user' || body.payMode === 'demo') {
+      payMode = body.payMode;
+    }
+    if (demoMode) payMode = 'demo';
 
     const job = await createJob({
       message,
@@ -38,6 +42,7 @@ export async function POST(request: NextRequest) {
       budgetUsdc,
       forcedSlug,
       payMode,
+      demoMode,
     });
 
     return NextResponse.json({ job }, { status: 201 });

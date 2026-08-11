@@ -10,7 +10,7 @@ export type JobStatus =
   | 'completed'
   | 'failed';
 
-export type PaymentMode = 'simulated' | 'real' | 'user';
+export type PaymentMode = 'simulated' | 'real' | 'user' | 'demo';
 
 export interface JobSpec {
   goal: string;
@@ -19,6 +19,7 @@ export interface JobSpec {
   budgetUsdc: number;
   chainId: number | null;
   maxPriceUsdc: number | null;
+  demoMode?: boolean;
 }
 
 export interface ListingCandidate {
