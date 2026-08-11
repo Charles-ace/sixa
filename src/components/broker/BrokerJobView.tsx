@@ -331,10 +331,17 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
                 setPayState({ status: 'submitting' });
                 try {
                   const res = await fetch(`/api/broker/jobs/${job.id}/resume`, { method: 'POST' });
-                  if (!res.ok) throw new Error('Authorization failed');
+                  if (!res.ok) {
+                    let errMsg = `HTTP ${res.status}`;
+                    try {
+                      const body = await res.json();
+                      errMsg = body.error ? `${body.error} (${body.code})` : errMsg;
+                    } catch {}
+                    throw new Error(errMsg);
+                  }
                   setPayState({ status: 'idle' });
-                } catch {
-                  setPayState({ status: 'error', error: 'Failed to authorize fallback execution.' });
+                } catch (err) {
+                  setPayState({ status: 'error', error: err instanceof Error ? err.message : 'Failed to authorize fallback execution.' });
                 }
               }}
               disabled={payState.status === 'submitting'}
