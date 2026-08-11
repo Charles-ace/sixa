@@ -524,6 +524,30 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
             {job.execution.executionId && (
               <p className="text-secondary font-mono">exec {job.execution.executionId}</p>
             )}
+            {job.decision?.workflow_id && (
+              <div className="mt-1">
+                <a
+                  href={`https://app.keeperhub.com/workflows/${job.decision.workflow_id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-primary underline hover:opacity-80 font-mono"
+                >
+                  View Workflow on KeeperHub ({job.decision.workflow_id}) <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+            )}
+            {job.proof?.execution_tx_hash && (
+              <div className="mt-1">
+                <a
+                  href={`${job.spec.demoMode || job.decision?.source === 'generated_fallback' ? 'https://sepolia.basescan.org' : 'https://basescan.org'}/tx/${job.proof.execution_tx_hash}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-success underline hover:opacity-80 font-mono"
+                >
+                  View Execution Tx on BaseScan <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+            )}
             {job.execution.error && <p className="mt-1 text-error">{job.execution.error}</p>}
           </div>
         )}

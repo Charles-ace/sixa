@@ -1065,17 +1065,25 @@ function normalizeParams(params: Record<string, unknown>, inputSchema: Record<st
 function buildSuccessReport(job: BrokerJob): string {
   const p = job.proof;
   const verdict = p && p.status === 'verified' ? 'COMPLETED (VERIFIED)' : 'UNVERIFIED';
+  const workflowId = p?.workflow_id ?? job.pendingFallback?.workflowId ?? null;
+  const execTx = p?.execution_tx_hash ?? null;
+  const payTx = p?.payment_tx_hash ?? job.payment?.txHash ?? null;
+  const isSepolia = job.decision?.source === 'generated_fallback' || job.spec.demoMode;
+  const explorerBase = isSepolia ? 'https://sepolia.basescan.org/tx' : 'https://basescan.org/tx';
+
   const lines = [
     `Job ${job.id} — ${verdict}.`,
     '',
     `Goal: ${job.spec.goal}`,
     ...(job.selected ? [`Listing: ${job.selected.name} (${job.selected.slug})`, `Price: $${job.selected.priceUsdcPerCall.toFixed(2)}/call`] : []),
     `Source: ${job.decision?.source ?? 'unknown'}`,
-    `Workflow id: ${p?.workflow_id ?? 'none'}`,
+    ...(workflowId ? [`Workflow ID: ${workflowId}`, `Workflow Link: https://app.keeperhub.com/workflows/${workflowId}`] : []),
     ...(p
       ? [
           `Payment tx hash: ${p.payment_tx_hash ?? 'none'} — ${p.payment_confirmed.ok ? 'CONFIRMED' : `CHECK FAILED: ${p.payment_confirmed.detail}`} (${p.payment_confirmed.how})`,
+          ...(payTx ? [`Payment Explorer: https://basescan.org/tx/${payTx}`] : []),
           `Execution tx hash: ${p.execution_tx_hash ?? 'none'} — ${p.execution_confirmed.ok ? 'CONFIRMED' : `CHECK FAILED: ${p.execution_confirmed.detail}`} (${p.execution_confirmed.how})`,
+          ...(execTx ? [`Execution Explorer: ${explorerBase}/${execTx}`] : []),
         ]
       : []),
     ...(job.payment?.receipt
@@ -1084,7 +1092,7 @@ function buildSuccessReport(job: BrokerJob): string {
           `Explorer: https://basescan.org/tx/${job.payment.txHash}`,
         ]
       : []),
-    ...(job.execution?.executionId ? [`Execution id: ${job.execution.executionId}`] : []),
+    ...(job.execution?.executionId ? [`Execution ID: ${job.execution.executionId}`] : []),
     ...(p && p.status !== 'verified' ? [`Warning: this job is NOT reported as completed — ${p.payment_confirmed.ok && p.execution_confirmed.ok ? 'an independent check is missing' : 'see failing checks above'}.`] : []),
   ];
   return lines.join('\n');
