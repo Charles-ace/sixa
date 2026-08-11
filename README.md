@@ -7,9 +7,24 @@ programmatic) when no marketplace listing matches — pausing for explicit user
 authorization before any fallback execution.
 
 Built as a live demo of the KeeperHub API against real infrastructure:
-- **Marketplace Payment Leg Proof:** `0xdbdbb3a9a4a3b8099907352aaef012067c6bd21adadb78e4b26dda1b33d77a76` is a Base mainnet USDC transfer, status success, at block 49801385.
-- **Base Sepolia Wallet Payment:** `0x5e0ebff7a2ccf90c987d58ec867e207f503f8861fa3a446a12aed4bb5e8648a5` is a Base Sepolia USDC transfer, status success, at block 45320348.
-- **Live Demo & Repeatable Proof:** Operating on the Base Sepolia fallback-generation path, confirmed as acceptable proof per KeeperHub clarification (Luca, Aug 11).
+
+### 🔗 Live On-Chain Proofs & Workflow Directory
+
+#### Base Mainnet Real Transactions (`Chain ID 8453`)
+* **Mainnet USDC Payment 1**: [`0xdbdbb3a9a4a3b8099907352aaef012067c6bd21adadb78e4b26dda1b33d77a76`](https://basescan.org/tx/0xdbdbb3a9a4a3b8099907352aaef012067c6bd21adadb78e4b26dda1b33d77a76) (Block #49801385, Status: Success)  
+  * Target Listing: `Aave V3 Liquidation Risk Check — Base` (`wallet-snapshot-base` / ID: `r36u35fyn9i7gqu3f7phx`)  
+  * KeeperHub Listing Link: [https://app.keeperhub.com/marketplace/wallet-snapshot-base](https://app.keeperhub.com/marketplace/wallet-snapshot-base)
+* **Mainnet USDC Payment 2**: [`0x5050dee55b15c4f07bed31f8b1202fa242dd9fb6adef0ac880458b9e82b447ef`](https://basescan.org/tx/0x5050dee55b15c4f07bed31f8b1202fa242dd9fb6adef0ac880458b9e82b447ef) (Block #49801423, Status: Success)  
+  * Target Listing: `Aave v3 Health Check` (`aave-v3-health-check` / ID: `f1rq5h53nwylfywdle3j7`)  
+  * KeeperHub Listing Link: [https://app.keeperhub.com/marketplace/aave-v3-health-check](https://app.keeperhub.com/marketplace/aave-v3-health-check)
+
+#### Base Sepolia Fallback Executions (`Chain ID 84532`)
+* **Execution Tx 1**: [`0xd401a1d71927b896b55420c7bbbd37bf6e01d8d8316c9e36dd9d217351193e7d`](https://sepolia.basescan.org/tx/0xd401a1d71927b896b55420c7bbbd37bf6e01d8d8316c9e36dd9d217351193e7d) (Block #45354985, Status: Success)  
+  * Generated Workflow ID: `lw33hb0ayj6gqintftq0q` (`checked-transfer-g63s`)  
+  * KeeperHub Workflow Link: [https://app.keeperhub.com/workflows/lw33hb0ayj6gqintftq0q](https://app.keeperhub.com/workflows/lw33hb0ayj6gqintftq0q)
+* **Execution Tx 2**: [`0x2b84b3bcb9c8cf4661d6834f0b00f9bcef3d4830fc2ec2d8e86e40db7272fde7`](https://sepolia.basescan.org/tx/0x2b84b3bcb9c8cf4661d6834f0b00f9bcef3d4830fc2ec2d8e86e40db7272fde7) (Block #45317577, Status: Success)  
+  * Generated Workflow ID: `o96szqs3m261pw97v78sl`  
+  * KeeperHub Workflow Link: [https://app.keeperhub.com/workflows/o96szqs3m261pw97v78sl](https://app.keeperhub.com/workflows/o96szqs3m261pw97v78sl)
 
 ## How it works
 
