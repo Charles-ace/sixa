@@ -76,10 +76,12 @@ function parseUnits(amountUnits: string): bigint {
 export function basePublicClient(rpcUrl?: string, chainIdOverride?: number) {
   const chainId = chainIdOverride ?? Number(process.env.BROKER_PAYER_CHAIN_ID ?? 84532);
   const targetChain = chainId === 8453 ? base : baseSepolia;
-  const defaultRpc = chainId === 8453 ? 'https://mainnet.base.org' : 'https://sepolia.base.org';
+  const defaultRpc = chainId === 8453
+    ? (process.env.BROKER_MAINNET_RPC_URL ?? 'https://mainnet.base.org')
+    : (process.env.BROKER_PAYER_RPC_URL ?? 'https://sepolia.base.org');
   return createPublicClient({
     chain: targetChain,
-    transport: http(rpcUrl ?? process.env.BROKER_PAYER_RPC_URL ?? defaultRpc),
+    transport: http(rpcUrl ?? defaultRpc),
   });
 }
 
