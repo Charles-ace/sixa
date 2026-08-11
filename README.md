@@ -25,6 +25,8 @@ Built as a live demo of the KeeperHub API against real infrastructure:
 * **Execution Tx 2**: [`0x2b84b3bcb9c8cf4661d6834f0b00f9bcef3d4830fc2ec2d8e86e40db7272fde7`](https://sepolia.basescan.org/tx/0x2b84b3bcb9c8cf4661d6834f0b00f9bcef3d4830fc2ec2d8e86e40db7272fde7) (Block #45317577, Status: Success)  
   * Generated Workflow ID: `o96szqs3m261pw97v78sl`  
   * KeeperHub Workflow Link: [https://app.keeperhub.com/workflows/o96szqs3m261pw97v78sl](https://app.keeperhub.com/workflows/o96szqs3m261pw97v78sl)
+* **Deployed Sixa Agent Workflow**: `uhp272otfnnqyhduj6pm8`  
+  * KeeperHub Direct Link: [https://app.keeperhub.com/workflows/uhp272otfnnqyhduj6pm8](https://app.keeperhub.com/workflows/uhp272otfnnqyhduj6pm8)
 
 ## How it works
 
