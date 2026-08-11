@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Mail, LogOut, Loader2, Sparkles, ArrowLeft, ShieldAlert } from 'lucide-react';
+import { Mail, LogOut, Loader2, Sparkles, ArrowLeft, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import { formatAddress } from '@/lib/utils';
@@ -91,6 +91,10 @@ export function AuthCard() {
           </div>
         ) : authenticated && account ? (
           <div>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-success/10 border border-success/30 text-success text-xs font-medium mb-3">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              Signed In Successfully
+            </div>
             <div className="flex items-center gap-2 mb-3">
               {account.picture && (
                 // eslint-disable-next-line @next/next/no-img-element
