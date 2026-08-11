@@ -66,7 +66,7 @@ a launched-but-unconfirmed execution is `unverified`, never a phantom success.
 - `GET /api/broker/jobs/:id` — job with decision, audit, execution, proof, report
 - `GET /api/broker/jobs/:id/audit` — raw step trace
 - `POST /api/broker/jobs/:id/resume` — authorize a paused fallback workflow
-- `GET /api/broker/jobs/:id/payment` — payment status/receipt
+- `POST /api/broker/jobs/:id/payment` — `{ txHash, from? }` — confirm a user-made x402 payment for a paused paid listing
 
 ## Reproducing the demo runs
 

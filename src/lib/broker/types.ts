@@ -179,6 +179,7 @@ export type AuditEventType =
   | 'payment_verified'
   | 'payment_unverified'
   | 'payment_reverted'
+  | 'payment_indexing'
   | 'execution_requested'
   | 'execution_polled'
   | 'execution_completed'

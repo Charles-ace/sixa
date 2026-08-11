@@ -41,12 +41,12 @@ export async function createJob(input: {
     payMode: input.payMode,
   });
   await storeJob(job);
-  // Keep the pipeline alive past the response on serverless so every state
-  // change is flushed before the next poll reads it.
-  after(async () => {
-    await runJob(jobId, input);
-  });
-  return job;
+  const runPromise = runJob(jobId, input);
+  await Promise.race([
+    runPromise,
+    new Promise((r) => setTimeout(r, 2500)),
+  ]);
+  return jobs.get(jobId) ?? job;
 }
 
 function newJob(id: string, spec: JobSpec, input: {
@@ -370,7 +370,7 @@ export async function confirmUserPayment(
     payTo: receipt.recipient,
   });
   await storeJob(job);
-  after(() => void resumeAfterUserPayment(jobId));
+  await resumeAfterUserPayment(jobId);
   return { ok: true };
 }
 
@@ -676,7 +676,23 @@ async function executeAndVerify(
   const params = normalizeParams(job.spec.params, candidate.inputSchema);
   if (paid) {
     setStatus(job, 'executing');
-    const execution = await client.callWorkflow(candidate.slug, params);
+    // After paying an x402 quote the gateway needs a moment to index the
+    // payment before it lets the same call execute. Retry with backoff so a
+    // verified payment isn't burned on a premature re-quote.
+    let execution = await client.callWorkflow(candidate.slug, params);
+    if (!execution.executionId && !execution.error && execution.quote) {
+      const backoffs = [5_000, 10_000, 15_000, 20_000, 30_000];
+      for (const delay of backoffs) {
+        pushAudit(job, 'payment_indexing', 'Payment made but the gateway has not confirmed it yet — retrying the execution call.', {
+          slug: candidate.slug,
+          retryAfterMs: delay,
+          paymentTxHash: job.payment?.txHash ?? null,
+        });
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        execution = await client.callWorkflow(candidate.slug, params);
+        if (execution.executionId) break;
+      }
+    }
     if (execution.error) {
       throw new ProviderError({ code: 'execution_failed', message: execution.error });
     }
@@ -684,7 +700,7 @@ async function executeAndVerify(
       throw new ProviderError({
         code: 'no_execution_id',
         message: `The workflow "${candidate.slug}" ran but returned no execution id to verify against.`,
-        hint: 'Verification requires a KeeperHub execution id; treat this as unverified.',
+        hint: 'The payment may not have been indexed by the listing gateway; check the payment tx on the explorer before retrying.',
       });
     }
     pushAudit(job, 'execution_requested', 'Execution started after payment.', { executionId: execution.executionId });
@@ -878,22 +894,25 @@ export async function resumeFallbackAfterAuthorization(jobId: string): Promise<{
   setStatus(job, 'executing');
   await storeJob(job);
 
-  after(async () => {
+  try {
     const execution = await executeFallbackWorkflow(brokerMcpClient, ref.workflowId, normalizeParams(job.spec.params, null));
     const current = await getJob(jobId);
-    if (!current) return;
-    try {
+    if (current) {
       await applyFallbackExecution(current, { ...ref, execution: null }, execution);
-    } catch (error) {
+    }
+  } catch (error) {
+    const current = await getJob(jobId);
+    if (current) {
       current.error = error instanceof Error ? error.message : 'Fallback execution failed.';
       setStatus(current, 'failed');
       pushAudit(current, 'job_failed', 'Fallback execution failed.', { error: current.error });
       current.report = buildFailureReport(current);
       await storeJob(current);
     }
-  });
+  }
 
-  return { ok: true, job };
+  const finalJob = await getJob(jobId);
+  return { ok: true, job: finalJob ?? job };
 }
 
 function normalizeParams(params: Record<string, unknown>, inputSchema: Record<string, unknown> | null): Record<string, unknown> {

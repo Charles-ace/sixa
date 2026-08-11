@@ -5,6 +5,7 @@ const DEFAULT_MCP_URL = 'https://app.keeperhub.com/mcp';
 const PROTOCOL_VERSION = '2025-06-18';
 const MAX_POLLS = 20;
 const POLL_INTERVAL_MS = 2000;
+const REQUEST_RETRY_ATTEMPTS = 3;
 
 interface ListingPayload {
   id?: string;
@@ -102,8 +103,25 @@ export class BrokerMcpClient {
       });
     }
     if (response.status === 429) {
-      throw new ProviderError({ code: 'rate_limited', message: 'Rate limited by KeeperHub MCP. Wait and retry.', status: 429 });
+      // KeeperHub rate limits the account during bursts (template deploys,
+      // parallel jobs). Retry with backoff instead of failing the run.
+      const retryAfterMs = REQUEST_RETRY_ATTEMPTS > 1 ? Math.min(30_000, Math.max(2_000, Number(response.headers.get('Retry-After') ?? 0) * 1000 || 5_000)) : 5_000;
+      let lastError: ProviderError | null = null;
+      for (let attempt = 1; attempt <= REQUEST_RETRY_ATTEMPTS; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, retryAfterMs * attempt));
+        const retried = await fetch(this.url, { method: 'POST', headers, body: JSON.stringify(body), cache: 'no-store' });
+        if (retried.status === 429) {
+          lastError = new ProviderError({ code: 'rate_limited', message: 'Rate limited by KeeperHub MCP. Wait and retry.', status: 429 });
+          continue;
+        }
+        return this.parseResponse(retried, opts);
+      }
+      throw lastError ?? new ProviderError({ code: 'rate_limited', message: 'Rate limited by KeeperHub MCP. Wait and retry.', status: 429 });
     }
+    return this.parseResponse(response, opts);
+  }
+
+  private async parseResponse(response: Response, opts?: { notify?: boolean }): Promise<unknown> {
     if (response.status !== 402 && !response.ok) {
       const rawError = await response.text().catch(() => '');
       throw new ProviderError({

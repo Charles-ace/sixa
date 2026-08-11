@@ -33,6 +33,19 @@ export function isPayerConfigured(): boolean {
   return Boolean(process.env.BROKER_PAYER_PRIVATE_KEY);
 }
 
+/**
+ * Map an x402 quote network to a chain id. Returns null for unknown
+ * networks (the configured payer chain is then used as the fallback).
+ */
+export function quoteNetworkChainId(network: string | null | undefined): number | null {
+  if (!network) return null;
+  const n = network.trim().toLowerCase();
+  if (n === '8453' || n === 'eip155:8453' || n === 'base' || n === 'base-mainnet') return 8453;
+  if (n === '84532' || n === 'eip155:84532' || n === 'base-sepolia') return 84532;
+  if (n === '1' || n === 'eip155:1' || n === 'ethereum') return 1;
+  return null;
+}
+
 export function payerMode(): PaymentMode {
   return isPayerConfigured() ? 'real' : 'simulated';
 }
@@ -92,7 +105,13 @@ export async function payX402(quote: PaymentQuote, mode: PaymentMode): Promise<P
   }
 
   const account = privateKeyToAccount(privateKey as `0x${string}`);
-  const chainId = Number(process.env.BROKER_PAYER_CHAIN_ID ?? 84532);
+  // Pay on the QUOTE's chain, not the configured one: x402 settlement is only
+  // meaningful on the listing's own network. Falls back to the configured
+  // payer chain for quotes without a network, and to the chain's default RPC
+  // when the configured RPC belongs to a different network.
+  const quoteChainId = quoteNetworkChainId(quote.network);
+  const configuredChainId = Number(process.env.BROKER_PAYER_CHAIN_ID ?? 84532);
+  const chainId = quoteChainId ?? configuredChainId;
   const chain = chainId === 8453 ? base : chainId === 84532 ? baseSepolia : undefined;
   if (!chain) {
     throw new ProviderError({
@@ -101,7 +120,8 @@ export async function payX402(quote: PaymentQuote, mode: PaymentMode): Promise<P
     });
   }
 
-  const rpcUrl = process.env.BROKER_PAYER_RPC_URL ?? 'https://mainnet.base.org';
+  const defaultRpc = chainId === 8453 ? 'https://mainnet.base.org' : 'https://sepolia.base.org';
+  const rpcUrl = chainId === configuredChainId ? (process.env.BROKER_PAYER_RPC_URL ?? defaultRpc) : defaultRpc;
   const client = createWalletClient({
     account,
     chain,
@@ -140,7 +160,7 @@ export async function payX402(quote: PaymentQuote, mode: PaymentMode): Promise<P
     txHash,
     asset: native ? 'native' : quote.asset,
     native,
-    networkName: chainId === 1 ? 'ethereum' : 'base',
+    networkName: chainId === 1 ? 'ethereum' : chainId === 8453 ? 'base' : 'base-sepolia',
     expectedAmountUnits: quote.amountUnits,
     expectedRecipient: to,
     publicClient,
