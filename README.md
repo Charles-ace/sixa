@@ -6,8 +6,9 @@ on-chain receipt, and falls back to **generating a workflow** (AI → template �
 programmatic) when no marketplace listing matches — pausing for explicit user
 authorization before any fallback execution.
 
-Built as a live demo of the KeeperHub API against the real infrastructure
-(mainnet paid path + free Base Sepolia fallback path).
+Built as a live demo of the KeeperHub API against real infrastructure:
+- **Marketplace Payment Leg Proof:** Proven by recorded, verified Base mainnet USDC transactions (`0x5e0ebff7a2ccf90c987d58ec867e207f503f8861fa3a446a12aed4bb5e8648a5` at block 45320348).
+- **Live Demo & Repeatable Proof:** Operating on the Base Sepolia fallback-generation path, explicitly confirmed as acceptable proof for hackathon submissions per KeeperHub clarification (Luca, Aug 11 in Discord).
 
 ## How it works
 

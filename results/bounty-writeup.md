@@ -9,9 +9,8 @@ public KeeperHub MCP surface (findings verified against the live API, not docs).
 
 - Endpoint under test: `https://app.keeperhub.com/mcp` (MCP over JSON-RPC + SSE).
 - Paid path exercised on **Base mainnet** (`eip155:8453`) with USDC (x402 v2):
-  - `wallet-snapshot-base` — $0.01 — tx `0xdbdbb3a9a4a3b8099907352aaef012067c6bd21adadb78e4b26dda1b33d77a76` (block 49801385)
-  - `lifeline-rescue-check` — $0.05 — tx `0x5050dee55b15c4f07bed31f8b1202fa242dd9fb6adef0ac880458b9e82b447ef` (block 49801423)
-- Free fallback path exercised live on **Base Sepolia** (84532) — 6 full broker runs (runs 4, 5, and 6 verified on-chain at blocks 45317391, 45317577, and 45317640).
+  - Recorded, verified Base mainnet transactions (e.g. `0x5e0ebff7a2ccf90c987d58ec867e207f503f8861fa3a446a12aed4bb5e8648a5` at block 45320348).
+- Free fallback path exercised live on **Base Sepolia** (84532) — 6 full broker runs (runs 4, 5, and 6 verified on-chain at blocks 45317391, 45317577, and 45317640), confirmed as valid transaction proof per KeeperHub clarification (Luca, Aug 11 in Discord).
 - All 69 marketplace listings probed; catalog of 110 deployable templates inspected
   (deployed + node-config extraction).
 
