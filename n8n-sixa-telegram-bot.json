@@ -1,0 +1,177 @@
+{
+  "name": "Sixa AI Payment Broker Telegram Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "node-telegram-trigger",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        300
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "TELEGRAM_BOT_CREDENTIALS_ID",
+          "name": "Telegram Bot Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://sixa-chi.vercel.app/api/broker/jobs",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"message\": \"{{ $json.message.text }}\",\n  \"payMode\": \"demo\"\n}",
+        "options": {}
+      },
+      "id": "node-sixa-create",
+      "name": "Sixa - Create Job",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sixa-chi.vercel.app/api/broker/jobs/{{ $json.job.id }}/resume",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"job\": {{ JSON.stringify($json.job) }}\n}",
+        "options": {}
+      },
+      "id": "node-sixa-resume",
+      "name": "Sixa - Authorize & Execute",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 3,
+        "unit": "seconds"
+      },
+      "id": "node-wait",
+      "name": "Wait 3s for On-Chain Settlement",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        940,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://sixa-chi.vercel.app/api/broker/jobs/{{ $node[\"Sixa - Create Job\"].json.job.id }}",
+        "options": {}
+      },
+      "id": "node-sixa-fetch",
+      "name": "Sixa - Fetch Final Proof",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1160,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $node[\"Telegram Trigger\"].json.message.chat.id }}",
+        "text": "=🤖 *Sixa AI Payment Broker Output*\n\n📌 *Goal:* {{ $node[\"Telegram Trigger\"].json.message.text }}\n⚡ *Status:* {{ $json.job.status.toUpperCase() }}\n\n⚙️ *KeeperHub Workflow:* \nhttps://app.keeperhub.com/workflows/{{ $json.job.decision.workflow_id }}\n\n🔗 *BaseScan Execution Tx:* \nhttps://sepolia.basescan.org/tx/{{ $json.job.proof.execution_tx_hash }}\n\n✅ *Verified On-Chain:* {{ $json.job.execution.verified ? \"YES ✓\" : \"PENDING\" }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "node-telegram-reply",
+      "name": "Telegram - Send Proof",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1380,
+        300
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "TELEGRAM_BOT_CREDENTIALS_ID",
+          "name": "Telegram Bot Token"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Sixa - Create Job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sixa - Create Job": {
+      "main": [
+        [
+          {
+            "node": "Sixa - Authorize & Execute",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sixa - Authorize & Execute": {
+      "main": [
+        [
+          {
+            "node": "Wait 3s for On-Chain Settlement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 3s for On-Chain Settlement": {
+      "main": [
+        [
+          {
+            "node": "Sixa - Fetch Final Proof",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sixa - Fetch Final Proof": {
+      "main": [
+        [
+          {
+            "node": "Telegram - Send Proof",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "sixa-n8n-telegram-v1"
+}
