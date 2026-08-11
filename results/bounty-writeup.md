@@ -70,6 +70,25 @@ A `web3/transfer-funds` action executes via KeeperHub's relayer architecture:
 workflow action itself (source = org runner wallet, destination = the configured
 recipient) — it is not a marketplace payment or a fee to KeeperHub.
 
+### 9. Medium — a broker "payment" can confirm as a no-op while the app's own verification flags it correctly
+Observed live: an x402 quote requested USDC on `eip155:8453` (Base mainnet), but the
+broker broadcast from its configured testnet payer (Base Sepolia) using the quote's
+mainnet USDC address `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` — an address with
+**no contract code on Base Sepolia** (`eth_getCode` = `0x`, verified via RPC).
+Both broadcast txs confirmed on-chain as status `success` at block 45337172 with
+*gasUsed 22,460* and **zero Transfer logs** — a `transfer()` call against a
+code-less address is a chain-level success that moves nothing:
+
+- `0x774252404bd4dd89b0ca51a0e9aa23d0a181e4dfd48f8a38728dbca8dee4f3a6` — Sepolia, status=`0x1`, `to=0x833589fcd6edb6e08f4c7c32d4f71b54bda02913`, input=`0xa9059cbb` → payTo `0x21db...`, no logs.
+- `0x11b13df57c07d638b43532a4cd4349556b9dc958d90a546a6bdee4cb4a2a9118` — Sepolia, status=`0x1`, input=`0xa9059cbb` → payTo `0xe20405...`, no logs.
+
+Neither tx exists on Base mainnet. No USDC was debited (payer balance on the real
+Sepolia USDC `0x036CbD...` is intact). The broker's `confirmOnChainReceipt` found
+no Transfer event → correctly flagged `amount/recipient mismatch` → the paid
+candidate failed honestly, no phantom success. **A payment tx can "succeed" on-chain
+while carrying no settlement effect; independent receipt verification (event
+decode + code-existence check) is what detects it.**
+
 ## Evidence artifacts
 
 - `results/report-part1-part2.md` — full live-run report (mainnet receipts + 6 Sepolia runs)
