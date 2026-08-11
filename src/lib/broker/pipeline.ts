@@ -527,6 +527,22 @@ async function executePipeline(job: BrokerJob): Promise<void> {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'unknown error';
       pushAudit(job, 'candidate_failed', `Listing "${candidate.slug}" failed at call time.`, { slug: candidate.slug, error: message });
+      if (job.payment?.mode === 'real' && job.payment.status === 'paid' && job.payment.txHash) {
+        // A real on-chain payment was made but the listing never returned an
+        // execution id. STOP — never pay the next candidate after a paid one
+        // failed, and never claim this job completed.
+        const hint = 'The listing was paid (see payment tx hash) but the gateway did not return an execution id to verify. Contact the listing provider or retry later.';
+        job.error = `${message} (${hint})`;
+        pushAudit(job, 'job_failed', 'Real payment made but execution unconfirmed — job failed to avoid double-spending.', {
+          slug: candidate.slug,
+          paymentTxHash: job.payment.txHash,
+          hint,
+        });
+        setStatus(job, 'failed');
+        job.report = buildFailureReport(job);
+        await storeJob(job);
+        return;
+      }
       setStatus(job, 'selecting');
       await storeJob(job);
     }

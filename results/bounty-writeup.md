@@ -7,10 +7,12 @@ public KeeperHub MCP surface (findings verified against the live API, not docs).
 
 ## Scope & method
 
-- Endpoint under test: `https://app.keeperhub.com/mcp` (MCP over JSON-RPC + SSE).
 - Paid path exercised on **Base mainnet** (`eip155:8453`) with USDC (x402 v2):
-  - Recorded, verified Base mainnet transactions (e.g. `0x5e0ebff7a2ccf90c987d58ec867e207f503f8861fa3a446a12aed4bb5e8648a5` at block 45320348).
-- Free fallback path exercised live on **Base Sepolia** (84532) — 6 full broker runs (runs 4, 5, and 6 verified on-chain at blocks 45317391, 45317577, and 45317640), confirmed as valid transaction proof per KeeperHub clarification (Luca, Aug 11 in Discord).
+  - `0xdbdbb3a9a4a3b8099907352aaef012067c6bd21adadb78e4b26dda1b33d77a76` is a Base mainnet USDC transfer, status success, at block 49801385.
+  - `0x5050dee55b15c4f07bed31f8b1202fa242dd9fb6adef0ac880458b9e82b447ef` is a Base mainnet USDC transfer, status success, at block 49801423.
+- Free fallback path exercised live on **Base Sepolia** (84532):
+  - `0x5e0ebff7a2ccf90c987d58ec867e207f503f8861fa3a446a12aed4bb5e8648a5` is a Base Sepolia USDC transfer, status success, at block 45320348.
+  - `0x2b84b3bcb9c8cf4661d6834f0b00f9bcef3d4830fc2ec2d8e86e40db7272fde7` is a Base Sepolia fallback execution, status success, at block 45317577.
 - All 69 marketplace listings probed; catalog of 110 deployable templates inspected
   (deployed + node-config extraction).
 
