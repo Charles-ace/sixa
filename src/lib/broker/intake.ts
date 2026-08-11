@@ -42,10 +42,10 @@ function inferAddressParams(msg: string): Record<string, unknown> {
   return params;
 }
 
-function inferChainId(msg: string): number | null {
-  if (/base|8453/i.test(msg)) return 8453;
+function inferChainId(msg: string): number {
+  if (/sepolia|84532/i.test(msg)) return 84532;
   if (/\bethereum\b|\bmainnet\b/i.test(msg)) return 1;
-  return null;
+  return 8453;
 }
 
 function fallbackQuery(msg: string): string {
@@ -63,9 +63,10 @@ function fallbackQuery(msg: string): string {
 function sanitizeSpec(parsed: Record<string, unknown>, fallback: JobSpec): JobSpec {
   const budget = numberOr(parsed.budgetUsdc, fallback.budgetUsdc);
   const maxPrice = numberOr(parsed.maxPriceUsdc, DEFAULT_MAX_PRICE_USDC);
-  let chainId: number | null = fallback.chainId;
-  if (parsed.chainId === 8453 || parsed.chainId === '8453' || parsed.chainId === 'base') chainId = 8453;
+  let chainId: number = fallback.chainId ?? 8453;
+  if (parsed.chainId === 84532 || parsed.chainId === '84532' || parsed.chainId === 'sepolia' || parsed.chainId === 'base-sepolia') chainId = 84532;
   else if (parsed.chainId === 1 || parsed.chainId === '1') chainId = 1;
+  else if (parsed.chainId === 8453 || parsed.chainId === '8453' || parsed.chainId === 'base') chainId = 8453;
   return {
     goal: typeof parsed.goal === 'string' && parsed.goal.trim() ? String(parsed.goal).trim().slice(0, 300) : fallback.goal,
     query: typeof parsed.query === 'string' && parsed.query.trim() ? String(parsed.query).trim().slice(0, 80) : fallback.query,
