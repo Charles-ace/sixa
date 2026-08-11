@@ -276,17 +276,18 @@ export async function getJob(jobId: string): Promise<BrokerJob | null> {
       return fromBlob;
     }
   }
-  // Fallback: check in-memory map (warm instance) then full list
+  // Fallback: check in-memory map (warm instance)
   if (jobs.has(jobId)) return jobs.get(jobId)!;
-  const all = await listJobs();
+  // Force fresh remote fetch (bypassing 5-second remoteCache) to ensure cold instances find newly created jobs
+  const all = await listJobs(true);
   return all.find((j) => j.id === jobId) ?? null;
 }
 
-export async function listJobs(): Promise<BrokerJob[]> {
+export async function listJobs(forceFresh = false): Promise<BrokerJob[]> {
   let shared: BrokerJob[] = [];
   if (usesSharedStore()) {
     try {
-      shared = await loadSharedJobs();
+      shared = await loadSharedJobs(forceFresh);
     } catch {
       shared = [];
     }
