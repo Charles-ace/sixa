@@ -283,6 +283,26 @@ export async function getJob(jobId: string): Promise<BrokerJob | null> {
   return all.find((j) => j.id === jobId) ?? null;
 }
 
+/**
+ * Register a job object supplied by the browser into this instance so the
+ * authorization resume can proceed even when the shared blob store is
+ * unreachable (suspended/blocked) and this lambda never saw the job before.
+ * The job is written to the in-memory map, the local file, and flushed to
+ * the shared store best-effort — the pipeline does not depend on any of
+ * those succeeding.
+ */
+function adoptJobFromClient(job: BrokerJob): void {
+  const existing = jobs.get(job.id);
+  if (!existing || new Date(job.updatedAt) >= new Date(existing.updatedAt)) {
+    jobs.set(job.id, job);
+  }
+  saveJobsLocal([...jobs.values()]);
+  if (usesSharedStore()) {
+    void flushSharedNow([...jobs.values()]);
+  }
+  console.log(`[pipeline] adopted client job ${job.id} (status=${job.status}, payMode=${job.payMode})`);
+}
+
 export async function listJobs(forceFresh = false): Promise<BrokerJob[]> {
   let shared: BrokerJob[] = [];
   if (usesSharedStore()) {
@@ -322,9 +342,14 @@ export async function resumeAfterUserPayment(jobId: string): Promise<void> {
 export async function confirmUserPayment(
   jobId: string,
   txHash: string,
-  from?: string
+  from?: string,
+  clientJob?: BrokerJob
 ): Promise<{ ok: boolean; code?: string; error?: string; hint?: string }> {
-  const job = await getJob(jobId);
+  let job = await getJob(jobId);
+  if (!job && clientJob && clientJob.id === jobId) {
+    adoptJobFromClient(clientJob);
+    job = clientJob;
+  }
   if (!job) return { ok: false, code: 'job_not_found', error: 'Job not found.' };
   if (job.status !== 'awaiting_payment' || !job.quote || !job.payment) {
     return { ok: false, code: 'no_pending_payment', error: 'This job is not waiting for a payment.' };
@@ -948,9 +973,19 @@ async function applyFallbackExecution(job: BrokerJob, ref: FallbackWorkflowRef, 
  * fallback workflow: launches the stored workflow, polls it, and records the
  * honest terminal outcome. Returns synchronously with the job paused-state
  * transition; the background continuation keeps the pipeline alive.
+ *
+ * `clientJob` is a last-resort fallback: when the shared store (Vercel Blob)
+ * is unreachable and this serverless instance never saw the job, the route
+ * hands back the exact job object the browser is already polling so the
+ * authorization can still be honored. Only used if the server-side lookup
+ * genuinely misses the job.
  */
-export async function resumeFallbackAfterAuthorization(jobId: string): Promise<{ ok: boolean; job?: BrokerJob; code?: string; error?: string }> {
-  const job = await getJob(jobId);
+export async function resumeFallbackAfterAuthorization(jobId: string, clientJob?: BrokerJob): Promise<{ ok: boolean; job?: BrokerJob; code?: string; error?: string }> {
+  let job = await getJob(jobId);
+  if (!job && clientJob && clientJob.id === jobId) {
+    adoptJobFromClient(clientJob);
+    job = clientJob;
+  }
   if (!job) return { ok: false, code: 'job_not_found', error: 'Job not found.' };
   if (job.status !== 'awaiting_payment') {
     return { ok: false, code: 'invalid_state', error: 'Job is not awaiting authorization.' };

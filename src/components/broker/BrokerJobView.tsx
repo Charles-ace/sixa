@@ -124,7 +124,7 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
       const res = await fetch(`/api/broker/jobs/${job?.id}/payment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ txHash, from }),
+        body: JSON.stringify({ txHash, from, job }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -330,7 +330,11 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
               onClick={async () => {
                 setPayState({ status: 'submitting' });
                 try {
-                  const res = await fetch(`/api/broker/jobs/${job.id}/resume`, { method: 'POST' });
+                  const res = await fetch(`/api/broker/jobs/${job.id}/resume`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ job }),
+                  });
                   if (!res.ok) {
                     let errMsg = `HTTP ${res.status}`;
                     try {
