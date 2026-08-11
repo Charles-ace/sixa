@@ -5,14 +5,12 @@ import type { BrokerJob } from './types';
 
 const FILE_NAME = 'broker-jobs.json';
 const REMOTE_PATH = 'sixa/broker-jobs.json';
+const REMOTE_JOB_PREFIX = 'sixa/jobs/';
 const REMOTE_CACHE_TTL_MS = 5000;
 
 // Statically scoped under the project root so Turbopack allows the fs calls.
 const filePath = resolve(join(process.cwd(), '.data', FILE_NAME));
 
-// The shared store stays enabled for the instance lifetime; blob failures are
-// transient and retried per call. A permanent latch made a lambda pool serve
-// empty results forever (jobs/audit 404 divergence).
 export function usesSharedStore(): boolean {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
 }
@@ -43,9 +41,7 @@ export function loadJobs(): BrokerJob[] {
 }
 
 export function saveJobs(jobs: BrokerJob[]): Promise<void> {
-  // Save locally first
   saveJobsLocal(jobs);
-  // Flush to shared store (Vercel Blob)
   return flushSharedNow([...jobs]);
 }
 
@@ -75,13 +71,37 @@ let remoteInFlight: Promise<BrokerJob[]> | null = null;
 let remoteWarned = false;
 let remoteLastFailedAt = 0;
 
+/**
+ * Read a single job directly from its own private blob path.
+ * This is the fastest and most reliable path for the resume endpoint —
+ * it does NOT require listing all jobs, which means it works correctly
+ * even on a cold lambda that has never seen any jobs.
+ */
+export async function loadSharedJob(jobId: string): Promise<BrokerJob | null> {
+  if (!usesSharedStore()) return null;
+  try {
+    const path = `${REMOTE_JOB_PREFIX}${jobId}.json`;
+    const res = await blobGet(path, { access: 'private', useCache: false });
+    if (res && res.statusCode === 200 && res.stream) {
+      const text = await new Response(res.stream).text();
+      const parsed = JSON.parse(text) as BrokerJob;
+      if (parsed && parsed.id === jobId) {
+        console.log(`[store] loadSharedJob: found job ${jobId} (status=${parsed.status})`);
+        return parsed;
+      }
+    }
+  } catch (error) {
+    console.warn(`[store] loadSharedJob: failed for ${jobId}:`, error instanceof Error ? error.message : error);
+  }
+  return null;
+}
+
 async function readRemote(forceFresh = false): Promise<BrokerJob[]> {
   if (!forceFresh && remoteInFlight) return remoteInFlight;
   const doFetch = async (): Promise<BrokerJob[]> => {
     try {
       return await fetchNewestSnapshot();
     } catch (error) {
-      // Transient blob failure: record it for observability but DO NOT latch.
       remoteLastFailedAt = Date.now();
       if (!remoteWarned) {
         remoteWarned = true;
@@ -90,7 +110,7 @@ async function readRemote(forceFresh = false): Promise<BrokerJob[]> {
       try {
         return await fetchNewestSnapshot();
       } catch {
-        // second attempt also failed — still not latched, next call retries
+        // second attempt also failed
       }
       return [];
     } finally {
@@ -102,10 +122,6 @@ async function readRemote(forceFresh = false): Promise<BrokerJob[]> {
   return fetchPromise;
 }
 
-/**
- * Reads directly from private stable blob object (sixa/broker-jobs.json).
- * Keeps data private and avoids expensive list() operations.
- */
 async function fetchNewestSnapshot(): Promise<BrokerJob[]> {
   try {
     const res = await blobGet(REMOTE_PATH, { access: 'private', useCache: false });
@@ -118,13 +134,13 @@ async function fetchNewestSnapshot(): Promise<BrokerJob[]> {
         return parsed.jobs;
       }
     } else {
-      console.log(`[store] fetchNewestSnapshot: stable path returned status=${res?.statusCode ?? 'null'}, falling through to list()`);
+      console.log(`[store] fetchNewestSnapshot: stable path returned status=${res?.statusCode ?? 'null'}, trying legacy`);
     }
   } catch (error) {
     console.log(`[store] fetchNewestSnapshot: stable path threw: ${error instanceof Error ? error.message : error}`);
   }
 
-  // Fallback: list snapshot files (used until stable path is populated)
+  // Fallback: list legacy snapshot files
   try {
     const { list: blobList } = await import('@vercel/blob');
     const listing = await blobList({ prefix: 'sixa/snapshots/' });
@@ -136,8 +152,7 @@ async function fetchNewestSnapshot(): Promise<BrokerJob[]> {
         const text = await new Response(res.stream).text();
         const parsed = JSON.parse(text) as { jobs?: BrokerJob[] };
         if (Array.isArray(parsed.jobs)) {
-          console.log(`[store] fetchNewestSnapshot: migrating ${parsed.jobs.length} jobs from legacy snapshot to stable path`);
-          // Write to stable path asynchronously (don't await — avoid blocking reads)
+          console.log(`[store] fetchNewestSnapshot: migrating ${parsed.jobs.length} jobs from legacy snapshot`);
           putSnapshot(parsed.jobs).catch((e) => console.warn('[store] migration write failed:', e));
           remoteLastFailedAt = 0;
           return parsed.jobs;
@@ -150,7 +165,6 @@ async function fetchNewestSnapshot(): Promise<BrokerJob[]> {
 
   return [];
 }
-
 
 export async function loadSharedJobs(forceFresh = false): Promise<BrokerJob[]> {
   if (!forceFresh && remoteCache && Date.now() - remoteCache.at < REMOTE_CACHE_TTL_MS) {
@@ -171,15 +185,35 @@ async function putSnapshot(jobs: BrokerJob[]): Promise<void> {
   });
 }
 
+/**
+ * Write a single job to its own private blob path so it can be retrieved
+ * directly by job ID on any serverless instance, including cold starts.
+ */
+async function putJobFile(job: BrokerJob): Promise<void> {
+  const path = `${REMOTE_JOB_PREFIX}${job.id}.json`;
+  await blobPut(path, JSON.stringify(job, null, 0), {
+    access: 'private',
+    addRandomSuffix: false,
+    allowOverwrite: true,
+    cacheControlMaxAge: 0,
+  });
+}
+
 export function flushSharedNow(jobs: BrokerJob[]): Promise<void> {
   if (!usesSharedStore()) return Promise.resolve();
   writeChain = writeChain
-    .then(() => putSnapshot(jobs))
+    .then(async () => {
+      // Write all-jobs snapshot AND individual job files in parallel
+      await Promise.all([
+        putSnapshot(jobs),
+        ...jobs.map((j) => putJobFile(j)),
+      ]);
+    })
     .catch((error) => {
       remoteLastFailedAt = Date.now();
       if (!remoteWarned) {
         remoteWarned = true;
-        console.warn('Broker store: shared blob write failed (will retry on next write):', error instanceof Error ? error.message : error);
+        console.warn('Broker store: shared blob write failed:', error instanceof Error ? error.message : error);
       }
     });
   return writeChain;

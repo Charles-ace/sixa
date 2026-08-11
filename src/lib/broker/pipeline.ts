@@ -8,7 +8,7 @@ import { createFallbackWorkflow, executeFallbackWorkflow, type FallbackWorkflowR
 import { after } from 'next/server';
 import { generateId } from '@/lib/utils';
 import { ProviderError } from '@/lib/keeperhub/providers/http';
-import { flushSharedNow, loadJobs, loadSharedJobs, saveJobs, saveJobsLocal, usesSharedStore } from './store';
+import { flushSharedNow, loadJobs, loadSharedJob, loadSharedJobs, saveJobs, saveJobsLocal, usesSharedStore } from './store';
 import { isNativeAsset, type AuditEvent, type AuditEventType, type BrokerJob, type CallRecord, type CheckResultDetail, type CompletionProof, type ExecutionResult, type JobDecision, type JobSpec, type ListingCandidate, type PaymentMode } from './types';
 
 const jobs = new Map<string, BrokerJob>();
@@ -264,6 +264,20 @@ function recordDecision(job: BrokerJob, decision: JobDecision): void {
 }
 
 export async function getJob(jobId: string): Promise<BrokerJob | null> {
+  // Fast path: read the job directly from its own blob file.
+  // This works reliably on cold lambda instances without needing to list all jobs.
+  if (usesSharedStore()) {
+    const fromBlob = await loadSharedJob(jobId);
+    if (fromBlob) {
+      // Hydrate local in-memory map for subsequent calls in this instance lifetime
+      if (!jobs.has(jobId) || new Date(fromBlob.updatedAt) > new Date(jobs.get(jobId)!.updatedAt)) {
+        jobs.set(jobId, fromBlob);
+      }
+      return fromBlob;
+    }
+  }
+  // Fallback: check in-memory map (warm instance) then full list
+  if (jobs.has(jobId)) return jobs.get(jobId)!;
   const all = await listJobs();
   return all.find((j) => j.id === jobId) ?? null;
 }
