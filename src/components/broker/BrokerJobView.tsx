@@ -61,12 +61,57 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
       const accounts = (await eth.request({ method: 'eth_requestAccounts' })) as string[];
       const from = accounts[0];
       if (!from) throw new Error('No account selected in your wallet.');
+
+      const isMainnet = quote.network === 'eip155:8453' || quote.network === '8453' || quote.network === 'base';
+      const targetChainIdNum = isMainnet ? 8453 : 84532;
+      const targetChainHex = `0x${targetChainIdNum.toString(16)}`;
+
+      try {
+        const currentChainHex = (await eth.request({ method: 'eth_chainId' })) as string;
+        if (parseInt(currentChainHex, 16) !== targetChainIdNum) {
+          try {
+            await eth.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: targetChainHex }],
+            });
+          } catch (switchErr: any) {
+            if (switchErr?.code === 4902 || switchErr?.message?.includes('Unrecognized chain')) {
+              await eth.request({
+                method: 'wallet_addEthereumChain',
+                params: isMainnet ? [{
+                  chainId: '0x2105',
+                  chainName: 'Base Mainnet',
+                  nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+                  rpcUrls: ['https://mainnet.base.org'],
+                  blockExplorerUrls: ['https://basescan.org'],
+                }] : [{
+                  chainId: '0x14a34',
+                  chainName: 'Base Sepolia',
+                  nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+                  rpcUrls: ['https://sepolia.base.org'],
+                  blockExplorerUrls: ['https://sepolia.basescan.org'],
+                }],
+              });
+            } else {
+              throw switchErr;
+            }
+          }
+        }
+      } catch (netErr: any) {
+        throw new Error(`Please switch your wallet network to Base ${isMainnet ? 'Mainnet' : 'Sepolia'} (Chain ID ${targetChainIdNum}) to proceed.`);
+      }
+
       const native = isNativeAsset(quote.asset);
+      let assetAddress = quote.asset;
+      if (!native && !isMainnet && quote.asset.toLowerCase() === '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913') {
+        assetAddress = '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
+      }
+
       const txParams = native
         ? { from, to: quote.payTo, data: '', value: `0x${BigInt(quote.amountUnits).toString(16)}` }
         : {
             from,
-            to: quote.asset,
+            to: assetAddress,
             data: encodeFunctionData({
               abi: TRANSFER_ABI,
               functionName: 'transfer',
@@ -162,9 +207,9 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
             setNotFound(false);
             void poll();
           }}
-          className="px-4 py-2 text-xs font-medium rounded-lg bg-surface border border-border text-primary hover:bg-surface/80 transition-colors"
+          className="px-4 py-2 text-xs font-medium bg-foreground text-background rounded-xl hover:opacity-85 transition-all"
         >
-          Retry Connection
+          Try reconnecting
         </button>
       </div>
     );
@@ -201,7 +246,11 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
   }
 
   const activeIndex = animatedActiveIndex;
-  const statusLabel = STATUS_LABELS[job.status];
+  const statusLabel = job.status === 'awaiting_payment'
+    ? (job as any).pendingFallback || !job.quote
+      ? 'Awaiting fallback authorization'
+      : STATUS_LABELS.awaiting_payment
+    : STATUS_LABELS[job.status] ?? job.status;
   const stepDone = (i: number) => i < activeIndex || job.status === 'completed';
 
   return (
@@ -225,7 +274,7 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
       </div>
 
       <div className="p-5 space-y-5">
-        {job.status === 'awaiting_payment' && job.quote && (
+        {job.status === 'awaiting_payment' && job.quote && !(job as any).pendingFallback && (
           <div className="rounded-xl bg-black/[0.04] border border-border p-4">
             <div className="flex items-center gap-2 mb-3">
               <Wallet className="w-4 h-4 text-foreground" />
@@ -267,7 +316,7 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
           </div>
         )}
 
-        {job.status === 'awaiting_payment' && !job.quote && (
+        {job.status === 'awaiting_payment' && ((job as any).pendingFallback || !job.quote) && (
           <div className="rounded-xl bg-black/[0.04] border border-border p-4">
             <div className="flex items-center gap-2 mb-3">
               <ScrollText className="w-4 h-4 text-foreground" />

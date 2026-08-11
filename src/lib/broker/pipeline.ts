@@ -310,6 +310,7 @@ export async function confirmUserPayment(
   }
 
   const quote = job.quote;
+  const quoteChainId = quote.network === 'eip155:8453' || quote.network === '8453' || quote.network === 'base' ? 8453 : 84532;
   let receipt;
   try {
     receipt = await confirmOnChainReceipt({
@@ -319,9 +320,9 @@ export async function confirmUserPayment(
       expectedAmountUnits: quote.amountUnits,
       expectedRecipient: quote.payTo,
       expectedFrom: from || undefined,
-      publicClient: basePublicClient(),
+      publicClient: basePublicClient(undefined, quoteChainId),
       payer: '',
-      networkName: 'base',
+      networkName: quoteChainId === 8453 ? 'base' : 'base-sepolia',
     });
   } catch (error) {
     return {
@@ -742,6 +743,7 @@ async function executeAndVerify(
 async function attemptGenerationFallback(job: BrokerJob, client: BrokerMcpClient, discoverCall: CallRecord): Promise<void> {
   pushAudit(job, 'fallback_generation', 'No reliable marketplace listing remains; generating a workflow as last resort.');
   setStatus(job, 'executing');
+  job.quote = null;
   await storeJob(job);
 
   const ref = await createFallbackWorkflow(client, job.spec.goal);

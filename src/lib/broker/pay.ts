@@ -60,8 +60,8 @@ function parseUnits(amountUnits: string): bigint {
   }
 }
 
-export function basePublicClient(rpcUrl?: string) {
-  const chainId = Number(process.env.BROKER_PAYER_CHAIN_ID ?? 84532);
+export function basePublicClient(rpcUrl?: string, chainIdOverride?: number) {
+  const chainId = chainIdOverride ?? Number(process.env.BROKER_PAYER_CHAIN_ID ?? 84532);
   const targetChain = chainId === 8453 ? base : baseSepolia;
   const defaultRpc = chainId === 8453 ? 'https://mainnet.base.org' : 'https://sepolia.base.org';
   return createPublicClient({
@@ -219,7 +219,13 @@ export async function confirmOnChainReceipt(opts: ConfirmReceiptInput): Promise<
       // tx lookup failed — the mismatch checks below will flag it
     }
   } else {
-    const log = receipt.logs.find((l) => l.address.toLowerCase() === asset.toLowerCase() && l.topics[0] === TRANSFER_TOPIC);
+    const log = receipt.logs.find((l) => {
+      const addr = l.address.toLowerCase();
+      const targetAsset = asset.toLowerCase();
+      const isUsdcLog = (addr === USDC_BASE.toLowerCase() || addr === USDC_BASE_SEPOLIA.toLowerCase()) &&
+                        (targetAsset === USDC_BASE.toLowerCase() || targetAsset === USDC_BASE_SEPOLIA.toLowerCase());
+      return (addr === targetAsset || isUsdcLog) && l.topics[0] === TRANSFER_TOPIC;
+    });
     if (log) {
       try {
         const decoded = decodeEventLog({ abi: TRANSFER_EVENT, data: log.data, topics: log.topics });
