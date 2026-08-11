@@ -941,25 +941,32 @@ export async function resumeFallbackAfterAuthorization(jobId: string): Promise<{
   setStatus(job, 'executing');
   await storeJob(job);
 
+  const runExecution = async () => {
+    try {
+      const execution = await executeFallbackWorkflow(brokerMcpClient, ref.workflowId, normalizeParams(job.spec.params, null));
+      const current = await getJob(jobId);
+      if (current) {
+        await applyFallbackExecution(current, { ...ref, execution: null }, execution);
+      }
+    } catch (error) {
+      const current = await getJob(jobId);
+      if (current) {
+        current.error = error instanceof Error ? error.message : 'Fallback execution failed.';
+        setStatus(current, 'failed');
+        pushAudit(current, 'job_failed', 'Fallback execution failed.', { error: current.error });
+        current.report = buildFailureReport(current);
+        await storeJob(current);
+      }
+    }
+  };
+
   try {
-    const execution = await executeFallbackWorkflow(brokerMcpClient, ref.workflowId, normalizeParams(job.spec.params, null));
-    const current = await getJob(jobId);
-    if (current) {
-      await applyFallbackExecution(current, { ...ref, execution: null }, execution);
-    }
-  } catch (error) {
-    const current = await getJob(jobId);
-    if (current) {
-      current.error = error instanceof Error ? error.message : 'Fallback execution failed.';
-      setStatus(current, 'failed');
-      pushAudit(current, 'job_failed', 'Fallback execution failed.', { error: current.error });
-      current.report = buildFailureReport(current);
-      await storeJob(current);
-    }
+    after(runExecution);
+  } catch {
+    void runExecution();
   }
 
-  const finalJob = await getJob(jobId);
-  return { ok: true, job: finalJob ?? job };
+  return { ok: true, job };
 }
 
 function normalizeParams(params: Record<string, unknown>, inputSchema: Record<string, unknown> | null): Record<string, unknown> {
