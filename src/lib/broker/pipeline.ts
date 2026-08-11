@@ -43,13 +43,30 @@ export async function createJob(input: {
     ...input,
     payMode: isDemo ? 'demo' : input.payMode,
   });
-  await storeJob(job);
-  const runPromise = runJob(jobId, input);
+  await storeJob(job, { forceFlush: true });
+
+  const runTask = async () => {
+    try {
+      await runJob(jobId, input);
+    } catch (err) {
+      console.error(`[pipeline] runJob background error for ${jobId}:`, err);
+    }
+  };
+
+  // Schedule background task with after() so Vercel keeps the lambda alive until completion
+  try {
+    after(runTask);
+  } catch {
+    void runTask();
+  }
+
+  // Wait briefly (up to 2s) for quick completions so initial response has intake data
   await Promise.race([
-    runPromise,
-    new Promise((r) => setTimeout(r, 2500)),
+    runTask(),
+    new Promise((r) => setTimeout(r, 2000)),
   ]);
-  return jobs.get(jobId) ?? job;
+
+  return (await getJob(jobId)) ?? jobs.get(jobId) ?? job;
 }
 
 function newJob(id: string, spec: JobSpec, input: {
