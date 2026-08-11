@@ -469,12 +469,12 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
                       <span className={job.payment.receipt.matches.amount ? 'text-success' : 'text-error'}>{job.payment.receipt.matches.amount ? 'yes' : 'NO'}</span>
                     </p>
                     <a
-                      href={`https://basescan.org/tx/${job.payment.txHash}`}
+                      href={`${job.payment.network === '84532' || job.payment.network === 'eip155:84532' || job.payment.network === 'base-sepolia' || job.spec.demoMode ? 'https://sepolia.basescan.org' : 'https://basescan.org'}/tx/${job.payment.txHash}`}
                       target="_blank"
                       rel="noreferrer"
                       className="inline-flex items-center gap-1 text-success underline decoration-success/40 underline-offset-2"
                     >
-                      View on BaseScan <ExternalLink className="w-3 h-3" />
+                      View Payment Tx on BaseScan <ExternalLink className="w-3 h-3" />
                     </a>
                   </div>
                 )}
