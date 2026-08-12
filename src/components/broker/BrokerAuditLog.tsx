@@ -30,11 +30,21 @@ const EVENT_TONE: Record<string, 'ok' | 'warn' | 'err' | 'info'> = {
   job_failed: 'err',
 };
 
-export function BrokerAuditLog({ jobId }: { jobId: string }) {
-  const [events, setEvents] = useState<AuditEvent[]>([]);
+export function BrokerAuditLog({ jobId, initialEvents = [] }: { jobId: string; initialEvents?: AuditEvent[] }) {
+  const [events, setEvents] = useState<AuditEvent[]>(initialEvents);
   const [pinnedToBottom, setPinnedToBottom] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastSignature = useRef<string>('');
+
+  useEffect(() => {
+    if (initialEvents.length > 0) {
+      const signature = initialEvents.map((e) => `${e.id}:${e.type}:${e.timestamp}`).join('|');
+      if (signature !== lastSignature.current) {
+        lastSignature.current = signature;
+        setEvents(initialEvents);
+      }
+    }
+  }, [initialEvents]);
 
   useEffect(() => {
     let cancelled = false;

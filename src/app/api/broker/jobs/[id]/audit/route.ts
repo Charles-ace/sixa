@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAudit, getJob } from '@/lib/broker/pipeline';
+import { getAudit, getJob, listJobs } from '@/lib/broker/pipeline';
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const job = await getJob(id);
+  let job = await getJob(id);
   if (!job) {
-    return NextResponse.json({ error: 'Job not found.', code: 'not_found' }, { status: 404 });
+    const all = await listJobs(true);
+    job = all.find((j) => j.id === id) ?? null;
   }
-  return NextResponse.json({ audit: await getAudit(id) });
+  return NextResponse.json({ audit: job?.audit ?? (await getAudit(id)) });
 }

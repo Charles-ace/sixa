@@ -565,7 +565,7 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
           </div>
         )}
 
-        <BrokerAuditLog jobId={job.id} />
+        <BrokerAuditLog jobId={job.id} initialEvents={job.audit} />
       </div>
     </div>
   );
