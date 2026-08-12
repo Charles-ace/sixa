@@ -26,9 +26,9 @@ async function runTestPass(runIndex: number): Promise<boolean> {
   let job = createData.job;
   console.log(`✅ Job initial creation: ID=${job.id}, Status=${job.status}`);
 
-  // Poll until the serverless background task reaches 'awaiting_payment' (pause gate)
+  // Poll until the background discovery reaches 'awaiting_payment' (pause gate)
   console.log(`Waiting for background discovery to pause at awaiting_payment...`);
-  for (let poll = 0; poll < 10; poll += 1) {
+  for (let poll = 0; poll < 15; poll += 1) {
     if (job?.status === "awaiting_payment") break;
     await new Promise((r) => setTimeout(r, 1000));
     const res = await fetch(`${BASE_URL}/api/broker/jobs/${job.id}`);
@@ -59,10 +59,10 @@ async function runTestPass(runIndex: number): Promise<boolean> {
   }
   console.log(`✅ Resume HTTP status: 200 OK`);
 
-  // 3. Poll for Completion (up to 20s)
-  console.log(`3. Polling for job completion and audit events...`);
+  // 3. Poll for Completion (up to 30s to allow Base Sepolia execution to confirm)
+  console.log(`3. Polling for job completion on-chain...`);
   let finalJob: any = null;
-  for (let i = 0; i < 10; i += 1) {
+  for (let i = 0; i < 15; i += 1) {
     await new Promise((r) => setTimeout(r, 2000));
     const getRes = await fetch(`${BASE_URL}/api/broker/jobs/${job.id}`);
     if (getRes.status === 200) {
@@ -79,18 +79,13 @@ async function runTestPass(runIndex: number): Promise<boolean> {
     return false;
   }
 
+  const auditEvents = Array.isArray(finalJob.audit) ? finalJob.audit : [];
+
   console.log(`\n📊 RUN #${runIndex} RESULTS:`);
   console.log(`• Final Job Status: ${finalJob.status}`);
   console.log(`• Execution Verified: ${finalJob.execution?.verified}`);
   console.log(`• Execution Tx Hash: ${finalJob.proof?.execution_tx_hash}`);
   console.log(`• KeeperHub Workflow ID: ${finalJob.decision?.workflow_id}`);
-  
-  // 4. Verify Audit Trail Endpoint & Event Count
-  console.log(`4. Fetching audit trail via /api/broker/jobs/${job.id}/audit...`);
-  const auditRes = await fetch(`${BASE_URL}/api/broker/jobs/${job.id}/audit`);
-  const auditData = await auditRes.json();
-  const auditEvents = Array.isArray(auditData.audit) ? auditData.audit : (finalJob.audit || []);
-
   console.log(`• Audit Event Count: ${auditEvents.length} events`);
   if (auditEvents.length > 0) {
     console.log(`• Audit Event Types:`, auditEvents.map((e: any) => e.type));

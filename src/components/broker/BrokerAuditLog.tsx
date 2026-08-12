@@ -31,24 +31,26 @@ const EVENT_TONE: Record<string, 'ok' | 'warn' | 'err' | 'info'> = {
 };
 
 export function BrokerAuditLog({ jobId, initialEvents = [] }: { jobId: string; initialEvents?: AuditEvent[] }) {
-  const [events, setEvents] = useState<AuditEvent[]>(initialEvents);
+  const [polled, setPolled] = useState<AuditEvent[]>([]);
   const [pinnedToBottom, setPinnedToBottom] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const lastSignature = useRef<string>('');
+  const lastPolledSignature = useRef('');
+  const hasParentTrail = useRef(false);
 
   useEffect(() => {
-    if (initialEvents.length > 0) {
-      const signature = initialEvents.map((e) => `${e.id}:${e.type}:${e.timestamp}`).join('|');
-      if (signature !== lastSignature.current) {
-        lastSignature.current = signature;
-        setEvents(initialEvents);
-      }
-    }
+    hasParentTrail.current = (initialEvents?.length ?? 0) > 0;
   }, [initialEvents]);
+
+  // The parent (BrokerJobView) polls the job every 3s and re-renders with a
+  // fresh `initialEvents` on every audit push — that trail is authoritative
+  // and live, with ZERO extra requests. The endpoint poll below is only a
+  // fallback for job views that do not supply a trail.
+  const events = (initialEvents?.length ?? 0) > 0 ? initialEvents : polled;
 
   useEffect(() => {
     let cancelled = false;
     const poll = async () => {
+      if (hasParentTrail.current) return;
       try {
         const res = await fetch(`/api/broker/jobs/${jobId}/audit`);
         if (!res.ok) return;
@@ -56,9 +58,9 @@ export function BrokerAuditLog({ jobId, initialEvents = [] }: { jobId: string; i
         const next: AuditEvent[] = Array.isArray(data.audit) ? data.audit : [];
         if (next.length === 0) return;
         const signature = next.map((e) => `${e.id}:${e.type}:${e.timestamp}`).join('|');
-        if (!cancelled && signature !== lastSignature.current) {
-          lastSignature.current = signature;
-          setEvents(next);
+        if (!cancelled && signature !== lastPolledSignature.current) {
+          lastPolledSignature.current = signature;
+          setPolled(next);
         }
       } catch {
         // keep polling

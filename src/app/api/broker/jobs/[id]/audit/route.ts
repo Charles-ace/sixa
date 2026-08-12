@@ -5,7 +5,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   const { id } = await params;
   let job = await getJob(id);
   if (!job) {
-    const all = await listJobs(true);
+    const all = await listJobs();
     job = all.find((j) => j.id === id) ?? null;
   }
   return NextResponse.json({ audit: job?.audit ?? (await getAudit(id)) });

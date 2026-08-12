@@ -8,7 +8,7 @@ import { createFallbackWorkflow, executeFallbackWorkflow, type FallbackWorkflowR
 import { after } from 'next/server';
 import { generateId } from '@/lib/utils';
 import { ProviderError } from '@/lib/keeperhub/providers/http';
-import { flushSharedNow, loadJobs, loadSharedJob, loadSharedJobs, saveJobs, saveJobsLocal, usesSharedStore } from './store';
+import { flushSharedNow, loadJobs, loadSharedJob, loadSharedJobs, saveJobsLocal, usesSharedStore } from './store';
 import { isNativeAsset, type AuditEvent, type AuditEventType, type BrokerJob, type CallRecord, type CheckResultDetail, type CompletionProof, type ExecutionResult, type JobDecision, type JobSpec, type ListingCandidate, type PaymentMode } from './types';
 
 const jobs = new Map<string, BrokerJob>();
@@ -103,6 +103,9 @@ function newJob(id: string, spec: JobSpec, input: {
 
 export function pushAudit(job: BrokerJob, type: AuditEventType, message: string, data?: Record<string, unknown> | null): void {
   job.audit.push({ id: generateId(), jobId: job.id, type, message, data: data ?? null, timestamp: new Date().toISOString() });
+  // Bumping updatedAt on EVERY event keeps the polling client's signature
+  // changing per event, so the UI re-renders the audit trail live.
+  job.updatedAt = new Date().toISOString();
 }
 
 export function setStatus(job: BrokerJob, status: BrokerJob['status']): void {
@@ -130,7 +133,7 @@ export async function storeJob(job: BrokerJob, options?: { forceFlush?: boolean 
   }
   saveJobsLocal([...jobs.values()]);
   if (options?.forceFlush || MAJOR_STATUSES.has(job.status)) {
-    await flushSharedNow([...jobs.values()]);
+    await flushSharedNow([...jobs.values()], options?.forceFlush ? { force: true } : undefined);
   }
 }
 
