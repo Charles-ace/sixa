@@ -3,7 +3,7 @@ import { assetDecimals, type ExAccepts, type ListingCandidate, type PaymentQuote
 
 const DEFAULT_MCP_URL = 'https://app.keeperhub.com/mcp';
 const PROTOCOL_VERSION = '2025-06-18';
-const MAX_POLLS = 20;
+const MAX_POLLS = 32;
 const POLL_INTERVAL_MS = 2000;
 const REQUEST_RETRY_ATTEMPTS = 3;
 

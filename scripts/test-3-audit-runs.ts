@@ -3,122 +3,132 @@ try { loadEnvFile(".env.local"); } catch {}
 
 const BASE_URL = "https://sixa-chi.vercel.app";
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+interface AuditEventPayload {
+  id: string;
+  type: string;
+  message: string;
+  timestamp: string;
+}
+
+interface JobPayload {
+  id: string;
+  status: string;
+  updatedAt: string;
+  audit?: AuditEventPayload[];
+  execution?: { verified?: boolean } | null;
+  decision?: { workflow_id?: string | null } | null;
+}
+
+// Client-faithful merge: keep the newest version by updatedAt. This mirrors
+// how the browser holds the authoritative job while polling (BrokerJobView
+// never regresses to a stale snapshot from another serverless instance).
+function merge(held: JobPayload | null, got: JobPayload | null): JobPayload | null {
+  if (!got) return held;
+  if (!held) return got;
+  if (new Date(got.updatedAt) > new Date(held.updatedAt)) return got;
+  if (new Date(got.updatedAt).getTime() === new Date(held.updatedAt).getTime() && (got.audit?.length ?? 0) > (held.audit?.length ?? 0)) return got;
+  return held;
+}
+
+async function fetchJob(id: string): Promise<JobPayload | null> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/broker/jobs/${id}`);
+    if (res.status !== 200) return null;
+    const data = (await res.json()) as { job?: JobPayload };
+    return data.job ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function runTestPass(runIndex: number): Promise<boolean> {
   console.log(`\n=======================================================`);
-  console.log(`▶️ RUN #${runIndex}: Testing Job Creation, Pause Gate & Audit Trail Verification`);
+  console.log(`▶️ RUN #${runIndex}: Job Creation → Pause Gate → Authorization → Audit Trail`);
   console.log(`=======================================================`);
 
   // 1. Create Job
   const prompt = `Aave liquidation risk snapshot for wallet test-${runIndex} on Base`;
-  console.log(`1. Posting job creation: "${prompt}"...`);
   const createRes = await fetch(`${BASE_URL}/api/broker/jobs`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message: prompt, payMode: "demo" }),
   });
-
   if (createRes.status !== 201) {
     console.error(`❌ Job creation failed with status ${createRes.status}`);
     return false;
   }
+  let job: JobPayload | null = ((await createRes.json()) as { job: JobPayload }).job;
+  console.log(`✅ Created: ID=${job.id} status=${job.status}`);
 
-  const createData = await createRes.json();
-  let job = createData.job;
-  console.log(`✅ Job initial creation: ID=${job.id}, Status=${job.status}`);
-
-  // Poll until the background discovery reaches 'awaiting_payment' (pause gate)
-  console.log(`Waiting for background discovery to pause at awaiting_payment...`);
-  for (let poll = 0; poll < 15; poll += 1) {
-    if (job?.status === "awaiting_payment") break;
-    await new Promise((r) => setTimeout(r, 1000));
-    const res = await fetch(`${BASE_URL}/api/broker/jobs/${job.id}`);
-    if (res.status === 200) {
-      const data = await res.json();
-      job = data.job;
-    }
+  // 2. Poll until the background discovery pauses at the authorization gate
+  for (let poll = 0; poll < 20 && job?.status !== "awaiting_payment"; poll += 1) {
+    await sleep(1500);
+    job = merge(job, await fetchJob(job!.id));
   }
-
   if (job?.status !== "awaiting_payment") {
-    console.error(`❌ Job failed to reach awaiting_payment state: status=${job?.status}`);
+    console.error(`❌ Job failed to reach awaiting_payment: status=${job?.status}`);
     return false;
   }
-  console.log(`✅ Job correctly paused at authorization gate: Status=${job.status}`);
+  console.log(`✅ Paused at authorization gate; audit events so far: ${(job.audit ?? []).length}`);
 
-  // 2. Authorize & Resume Fallback
-  console.log(`2. Resuming/Authorizing fallback workflow for job ${job.id}...`);
+  // 3. Authorize & Resume Fallback (sending the client-held job, like the UI)
   const resumeRes = await fetch(`${BASE_URL}/api/broker/jobs/${job.id}/resume`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ job }),
   });
-
   if (resumeRes.status !== 200) {
-    const errBody = await resumeRes.json().catch(() => ({}));
-    console.error(`❌ Resume endpoint failed with status ${resumeRes.status}:`, errBody);
+    console.error(`❌ Resume failed with status ${resumeRes.status}:`, await resumeRes.json().catch(() => ({})));
     return false;
   }
-  console.log(`✅ Resume HTTP status: 200 OK`);
+  const resumeBody = (await resumeRes.json()) as { job?: JobPayload };
+  if (resumeBody.job) job = merge(job, resumeBody.job);
+  console.log(`✅ Resume HTTP 200 (held status now: ${job?.status})`);
 
-  // 3. Poll for Completion (up to 30s to allow Base Sepolia execution to confirm)
-  console.log(`3. Polling for job completion on-chain...`);
-  let finalJob: any = null;
-  for (let i = 0; i < 15; i += 1) {
-    await new Promise((r) => setTimeout(r, 2000));
-    const getRes = await fetch(`${BASE_URL}/api/broker/jobs/${job.id}`);
-    if (getRes.status === 200) {
-      const data = await getRes.json();
-      finalJob = data.job;
-      if (finalJob?.status === "completed" || finalJob?.status === "failed") {
-        break;
-      }
-    }
+  // 4. Poll for the terminal state, merging only strictly newer snapshots
+  for (let i = 0; i < 100; i += 1) {
+    await sleep(2500);
+    const got = await fetchJob(job!.id);
+    if (got) job = merge(job, got);
+    if (job?.status === "completed" || job?.status === "failed") break;
   }
 
-  if (!finalJob) {
-    console.error(`❌ Failed to fetch final job state.`);
-    return false;
+  // 5. Audit trail assertions
+  const audit: AuditEventPayload[] = Array.isArray(job?.audit) ? job.audit : [];
+  const types = audit.map((e) => e.type);
+  const required = ["job_created", "intent_parsed", "catalog_searched", "fallback_generation", "user_authorized"];
+  const missing = required.filter((t) => !types.includes(t));
+  const monotonic = audit.every((e, i) => i === 0 || new Date(e.timestamp) >= new Date(audit[i - 1].timestamp));
+
+  console.log(`\n📊 RUN #${runIndex} — AUDIT TRAIL (${audit.length} events):`);
+  for (const e of audit) {
+    console.log(`   ${new Date(e.timestamp).toISOString().slice(11, 19)}  ${e.type.padEnd(22)} ${e.message.slice(0, 84)}`);
   }
+  console.log(`   → final status=${job?.status} verified=${job?.execution?.verified} workflow=${job?.decision?.workflow_id ?? "none"}`);
 
-  const auditEvents = Array.isArray(finalJob.audit) ? finalJob.audit : [];
-
-  console.log(`\n📊 RUN #${runIndex} RESULTS:`);
-  console.log(`• Final Job Status: ${finalJob.status}`);
-  console.log(`• Execution Verified: ${finalJob.execution?.verified}`);
-  console.log(`• Execution Tx Hash: ${finalJob.proof?.execution_tx_hash}`);
-  console.log(`• KeeperHub Workflow ID: ${finalJob.decision?.workflow_id}`);
-  console.log(`• Audit Event Count: ${auditEvents.length} events`);
-  if (auditEvents.length > 0) {
-    console.log(`• Audit Event Types:`, auditEvents.map((e: any) => e.type));
-  }
-
-  if (finalJob.status === "completed" && auditEvents.length >= 5) {
-    console.log(`✅ RUN #${runIndex} PASSED 100% CLEANLY WITH ${auditEvents.length} AUDIT EVENTS!`);
-    return true;
+  const terminalOk = job?.status === "completed";
+  const passed = terminalOk && missing.length === 0 && monotonic && audit.length >= 8;
+  if (passed) {
+    console.log(`✅ RUN #${runIndex} PASSED — completed with ${audit.length} clean audit events`);
   } else {
-    console.error(`❌ RUN #${runIndex} FAILED: status=${finalJob.status}, auditCount=${auditEvents.length}`);
-    return false;
+    console.error(`❌ RUN #${runIndex} FAILED — status=${job?.status}, missing types=[${missing}], monotonic=${monotonic}, auditCount=${audit.length}`);
   }
+  return passed;
 }
 
 async function main() {
-  console.log("Starting 3 Consecutive End-to-End Production Tests with Audit Verification...");
+  console.log("Starting 3 Consecutive End-to-End Production Tests with Audit Trail Verification...");
   let passCount = 0;
-
   for (let r = 1; r <= 3; r += 1) {
-    const passed = await runTestPass(r);
-    if (passed) passCount += 1;
-    await new Promise((r) => setTimeout(r, 2000));
+    if (await runTestPass(r)) passCount += 1;
+    await sleep(2000);
   }
-
   console.log(`\n=======================================================`);
   console.log(`🎯 FINAL SUITE SUMMARY: ${passCount} / 3 RUNS PASSED`);
   console.log(`=======================================================`);
-
-  if (passCount === 3) {
-    process.exit(0);
-  } else {
-    process.exit(1);
-  }
+  process.exit(passCount === 3 ? 0 : 1);
 }
 
 main().catch((err) => {

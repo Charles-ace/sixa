@@ -53,7 +53,10 @@ export async function createJob(input: {
     }
   };
 
-  // Schedule background task with after() so Vercel keeps the lambda alive until completion
+  // Schedule the background task EXACTLY ONCE with after() so Vercel keeps
+  // the lambda alive until completion. (Previously the same task was also
+  // raced against the 2s wait below, starting the pipeline twice and
+  // doubling the audit trail + generating two workflows per job.)
   try {
     after(runTask);
   } catch {
@@ -61,10 +64,7 @@ export async function createJob(input: {
   }
 
   // Wait briefly (up to 2s) for quick completions so initial response has intake data
-  await Promise.race([
-    runTask(),
-    new Promise((r) => setTimeout(r, 2000)),
-  ]);
+  await new Promise((r) => setTimeout(r, 2000));
 
   return (await getJob(jobId)) ?? jobs.get(jobId) ?? job;
 }
@@ -460,7 +460,28 @@ export async function runJob(jobId: string, input: {
   forcedSlug?: string | null;
   payMode?: PaymentMode;
   demoMode?: boolean;
-}): Promise<BrokerJob> {
+}): Promise<BrokerJob | null> {
+  // Single-flight guard: one pipeline run per job ID. A second concurrent
+  // invocation must never re-run discovery/generation on the same job.
+  if (claimedJobs.has(jobId)) return jobs.get(jobId) ?? null;
+  claimedJobs.add(jobId);
+  try {
+    return await runJobInner(jobId, input);
+  } finally {
+    claimedJobs.delete(jobId);
+  }
+}
+
+const claimedJobs = new Set<string>();
+
+async function runJobInner(jobId: string, input: {
+  message: string;
+  accountEmail?: string | null;
+  budgetUsdc?: number;
+  forcedSlug?: string | null;
+  payMode?: PaymentMode;
+  demoMode?: boolean;
+}): Promise<BrokerJob | null> {
   // Reuse the job registered by createJob when present; otherwise register
   // one now so callers can poll it while intake runs.
   let job = jobs.get(jobId) ?? null;

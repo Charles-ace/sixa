@@ -41,6 +41,7 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
   const [notFound, setNotFound] = useState(false);
   const notFoundRef = useRef(false);
   const lastSignature = useRef<string>('');
+  const lastUpdatedAt = useRef<string>('');
   const misses = useRef(0);
   const [payState, setPayState] = useState<{ status: 'idle' | 'signing' | 'submitting' | 'error'; error?: string }>({ status: 'idle' });
   const [serverDown, setServerDown] = useState(false);
@@ -160,6 +161,11 @@ export function BrokerJobView({ jobId, active }: { jobId: string; active?: boole
       const data = await res.json();
       const next = data.job as BrokerJob | undefined;
       if (!next) return;
+      // Never regress to a stale snapshot served by a different serverless
+      // instance — the client's held job is authoritative until a NEWER one
+      // arrives (keeps the audit trail from rewinding mid-flow).
+      if (lastUpdatedAt.current && next.updatedAt < lastUpdatedAt.current) return;
+      lastUpdatedAt.current = next.updatedAt;
       const signature = `${next.updatedAt}:${next.status}:${JSON.stringify(next.payment ?? next.execution ?? null)}`;
       if (signature !== lastSignature.current) {
         lastSignature.current = signature;
