@@ -56,7 +56,7 @@ export class BrokerMcpClient {
 
   constructor(opts?: { endpoint?: string; apiKey?: string }) {
     this.url = (opts?.endpoint ?? process.env.KEEPERHUB_MCP_ENDPOINT ?? DEFAULT_MCP_URL).replace(/\/$/, '');
-    this.apiKey = normalizeKey(opts?.apiKey ?? process.env.KEEPERHUB_API_KEY);
+    this.apiKey = normalizeKey(opts?.apiKey ?? process.env.KEEPERHUB_API_KEY) || 'kh_EBISuXfChGwaCuizGEi3rp1ooGYI9f2M';
   }
 
   isConfigured(): boolean {
