@@ -1000,9 +1000,11 @@ async function applyFallbackExecution(job: BrokerJob, ref: FallbackWorkflowRef, 
  */
 export async function resumeFallbackAfterAuthorization(jobId: string, clientJob?: BrokerJob): Promise<{ ok: boolean; job?: BrokerJob; code?: string; error?: string }> {
   let job = await getJob(jobId);
-  if (!job && clientJob && clientJob.id === jobId) {
-    adoptJobFromClient(clientJob);
-    job = clientJob;
+  if (clientJob && clientJob.id === jobId && clientJob.status === 'awaiting_payment') {
+    if (!job || job.status !== 'awaiting_payment' || new Date(clientJob.updatedAt) >= new Date(job.updatedAt)) {
+      adoptJobFromClient(clientJob);
+      job = clientJob;
+    }
   }
   if (!job) return { ok: false, code: 'job_not_found', error: 'Job not found.' };
   if (job.status !== 'awaiting_payment') {
