@@ -327,7 +327,7 @@ export class BrokerMcpClient {
       description,
       nodes,
       edges,
-      enabled: false,
+      enabled: true,
     });
     const created = parseJsonRecord(createdResult.text) ?? {};
     const workflowId = stringField(created, 'id') ?? stringField(created, 'workflowId');
@@ -507,7 +507,7 @@ export class BrokerMcpClient {
         description: String(gen.description ?? `Generated for: ${goal}`),
         nodes,
         edges,
-        enabled: false,
+        enabled: true,
       });
       const created = parseJsonRecord(createdResult.text) ?? {};
       const workflowId = stringField(created, 'id') ?? stringField(created, 'workflowId');
