@@ -45,7 +45,7 @@ export interface WorkflowNodeInfo {
 }
 
 function normalizeKey(raw: string | undefined): string {
-  return (raw ?? '').trim().replace(/^["']/, '').replace(/["']$/, '');
+  return (raw ?? '').replace(/[\r\n\t]/g, '').trim().replace(/^["']/, '').replace(/["']$/, '');
 }
 
 export class BrokerMcpClient {
