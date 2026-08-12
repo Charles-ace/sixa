@@ -8,7 +8,7 @@ const REMOTE_PATH = 'sixa/broker-jobs.json';
 const REMOTE_JOB_PREFIX = 'sixa/jobs/';
 // Long TTL so repeated reads within an instance hit memory instead of the
 // blob API — Vercel Blob advanced operations are quota-billed (2K/month free).
-const REMOTE_CACHE_TTL_MS = 30000;
+const REMOTE_CACHE_TTL_MS = 2000;
 
 // Statically scoped under the project root so Turbopack allows the fs calls.
 const filePath = resolve(join(process.cwd(), '.data', FILE_NAME));
@@ -80,7 +80,7 @@ let remoteLastFailedAt = 0;
  * even on a cold lambda that has never seen any jobs.
  */
 export async function loadSharedJob(jobId: string): Promise<BrokerJob | null> {
-  if (!usesSharedStore()) return null;
+  if (!usesSharedStore() || isSharedStoreBroken()) return null;
   try {
     const path = `${REMOTE_JOB_PREFIX}${jobId}.json`;
     const res = await blobGet(path, { access: 'private' });
@@ -90,6 +90,7 @@ export async function loadSharedJob(jobId: string): Promise<BrokerJob | null> {
       if (parsed && parsed.id === jobId) return parsed;
     }
   } catch (error) {
+    remoteLastFailedAt = Date.now();
     if (!remoteWarned) {
       remoteWarned = true;
       console.warn('[store] loadSharedJob failed:', error instanceof Error ? error.message : error);

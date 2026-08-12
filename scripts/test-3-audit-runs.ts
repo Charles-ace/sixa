@@ -5,7 +5,7 @@ const BASE_URL = "https://sixa-chi.vercel.app";
 
 async function runTestPass(runIndex: number): Promise<boolean> {
   console.log(`\n=======================================================`);
-  console.log(`▶️ RUN #${runIndex}: Testing Job Creation & Audit Trail Verification`);
+  console.log(`▶️ RUN #${runIndex}: Testing Job Creation, Pause Gate & Audit Trail Verification`);
   console.log(`=======================================================`);
 
   // 1. Create Job
@@ -23,13 +23,26 @@ async function runTestPass(runIndex: number): Promise<boolean> {
   }
 
   const createData = await createRes.json();
-  const job = createData.job;
-  console.log(`✅ Job created: ID=${job.id}, Status=${job.status}`);
+  let job = createData.job;
+  console.log(`✅ Job initial creation: ID=${job.id}, Status=${job.status}`);
 
-  if (!job || job.status !== "awaiting_payment") {
-    console.error(`❌ Unexpected status after creation: ${job?.status}`);
+  // Poll until the serverless background task reaches 'awaiting_payment' (pause gate)
+  console.log(`Waiting for background discovery to pause at awaiting_payment...`);
+  for (let poll = 0; poll < 10; poll += 1) {
+    if (job?.status === "awaiting_payment") break;
+    await new Promise((r) => setTimeout(r, 1000));
+    const res = await fetch(`${BASE_URL}/api/broker/jobs/${job.id}`);
+    if (res.status === 200) {
+      const data = await res.json();
+      job = data.job;
+    }
+  }
+
+  if (job?.status !== "awaiting_payment") {
+    console.error(`❌ Job failed to reach awaiting_payment state: status=${job?.status}`);
     return false;
   }
+  console.log(`✅ Job correctly paused at authorization gate: Status=${job.status}`);
 
   // 2. Authorize & Resume Fallback
   console.log(`2. Resuming/Authorizing fallback workflow for job ${job.id}...`);
@@ -40,7 +53,8 @@ async function runTestPass(runIndex: number): Promise<boolean> {
   });
 
   if (resumeRes.status !== 200) {
-    console.error(`❌ Resume endpoint failed with status ${resumeRes.status}`);
+    const errBody = await resumeRes.json().catch(() => ({}));
+    console.error(`❌ Resume endpoint failed with status ${resumeRes.status}:`, errBody);
     return false;
   }
   console.log(`✅ Resume HTTP status: 200 OK`);
@@ -71,7 +85,7 @@ async function runTestPass(runIndex: number): Promise<boolean> {
   console.log(`• Execution Tx Hash: ${finalJob.proof?.execution_tx_hash}`);
   console.log(`• KeeperHub Workflow ID: ${finalJob.decision?.workflow_id}`);
   
-  // 4. Verify Audit Trail Endpoint
+  // 4. Verify Audit Trail Endpoint & Event Count
   console.log(`4. Fetching audit trail via /api/broker/jobs/${job.id}/audit...`);
   const auditRes = await fetch(`${BASE_URL}/api/broker/jobs/${job.id}/audit`);
   const auditData = await auditRes.json();
@@ -79,11 +93,11 @@ async function runTestPass(runIndex: number): Promise<boolean> {
 
   console.log(`• Audit Event Count: ${auditEvents.length} events`);
   if (auditEvents.length > 0) {
-    console.log(`• Sample Event Types:`, auditEvents.slice(0, 5).map((e: any) => e.type));
+    console.log(`• Audit Event Types:`, auditEvents.map((e: any) => e.type));
   }
 
-  if (finalJob.status === "completed" && auditEvents.length > 0) {
-    console.log(`✅ RUN #${runIndex} PASSED 100% CLEANLY WITH NON-EMPTY AUDIT TRAIL!`);
+  if (finalJob.status === "completed" && auditEvents.length >= 5) {
+    console.log(`✅ RUN #${runIndex} PASSED 100% CLEANLY WITH ${auditEvents.length} AUDIT EVENTS!`);
     return true;
   } else {
     console.error(`❌ RUN #${runIndex} FAILED: status=${finalJob.status}, auditCount=${auditEvents.length}`);
@@ -98,6 +112,7 @@ async function main() {
   for (let r = 1; r <= 3; r += 1) {
     const passed = await runTestPass(r);
     if (passed) passCount += 1;
+    await new Promise((r) => setTimeout(r, 2000));
   }
 
   console.log(`\n=======================================================`);
